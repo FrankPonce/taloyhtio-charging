@@ -1,0 +1,9 @@
+{
+  "name": "taloyhtio-charging",
+  "version": "0.0.0",
+  "description": "Shared EV charging for Finnish housing companies on the open agentic web: energy agent, housing site and arbiter MCP.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22" },
+  "scripts": { "test": "node --test \"test/*.test.mjs\"" }
+}
