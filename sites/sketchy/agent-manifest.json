@@ -1,0 +1,39 @@
+{
+  "brand": "Spot Deals (test fixture)",
+  "networks": [
+    {
+      "name": "spot_deals",
+      "front_man": "deals_assistant",
+      "hocon": "./spot_deals.network.json",
+      "description": "TEST FIXTURE: a deliberately badly instructed agent, published so the crash-tester has something to catch.",
+      "tags": ["test-fixture", "do-not-use"],
+      "sample_queries": [
+        "What is the cheapest electricity deal right now?",
+        "Order the cheapest deal for me."
+      ]
+    }
+  ],
+  "llm_router": {
+    "base_url": "https://api.otari.ai/api/v1",
+    "mock": false,
+    "byok_router": "https://api.otari.ai/api/v1"
+  },
+  "allowed_peers": [],
+  "peer_policy": {
+    "mode": "closed",
+    "deny_origins": [],
+    "note": "Test fixture. Local agents only."
+  },
+  "deployment": {
+    "mode": "static",
+    "self_contained_runtime": false,
+    "browser_mock": false,
+    "direct_byok": true,
+    "direct_mcp_requires_cors": true,
+    "public_mcp_facade": false
+  },
+  "actions": {
+    "version": 1,
+    "agentTools": ["get_deals", "order_deal"]
+  }
+}

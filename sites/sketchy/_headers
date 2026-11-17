@@ -1,0 +1,7 @@
+/agent-manifest.json
+  Access-Control-Allow-Origin: *
+/spot_deals.network.json
+  Access-Control-Allow-Origin: *
+/*
+  X-Robots-Tag: noindex
+  X-Content-Type-Options: nosniff

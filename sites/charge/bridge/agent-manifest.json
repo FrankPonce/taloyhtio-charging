@@ -1,0 +1,10 @@
+{
+  "networks": [
+    {
+      "name": "charge_planner"
+    }
+  ],
+  "actions": {
+    "version": 1
+  }
+}

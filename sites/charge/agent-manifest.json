@@ -1,0 +1,81 @@
+{
+  "brand": "Charge Assistant",
+  "networks": [
+    {
+      "name": "charge_planner",
+      "front_man": "charge_assistant",
+      "hocon": "./charge_planner.network.json",
+      "description": "Ask when to charge your electric car in Finland. I plan from real 15-minute spot prices.",
+      "tags": [
+        "agentified-website",
+        "energy",
+        "ev-charging",
+        "finland"
+      ],
+      "sample_queries": [
+        "When is electricity cheapest tomorrow?",
+        "I need 30 kWh by 07:00 tomorrow with an 11 kW charger. When should I charge, and what will it cost?",
+        "How much do I save by charging 40 kWh overnight instead of right now, at 7.4 kW, ready by 08:00 tomorrow?",
+        "Show a plan on the page for 20 kWh by 06:30 tomorrow at 11 kW.",
+        "Start charging my car now."
+      ]
+    }
+  ],
+  "llm_router": {
+    "base_url": "https://charge.frankmp12357.workers.dev/api/llm/v1",
+    "mock": false,
+    "byok_router": "https://api.otari.ai/api/v1"
+  },
+  "allowed_peers": [],
+  "peer_policy": {
+    "mode": "closed",
+    "deny_origins": [],
+    "note": "Local agents and page-local actions only."
+  },
+  "agent_mcp": {
+    "protocol": "nsdeploy-agent-mcp/v1",
+    "network": "charge_planner",
+    "front_man": "charge_assistant",
+    "available": false,
+    "reason": "This is a static bundle; a public MCP facade requires an application host."
+  },
+  "theme": {
+    "primary": "#0f5c4a"
+  },
+  "linking": {
+    "protocol": "nsdeploy-link/v1",
+    "exports": [
+      {
+        "network": "charge_planner",
+        "front_man": "charge_assistant",
+        "aliases": [
+          "charge_planner",
+          "charge_assistant"
+        ],
+        "url": "charge_planner"
+      }
+    ],
+    "imports": [],
+    "link_updates": {
+      "mode": "browser-local"
+    }
+  },
+  "deployment": {
+    "mode": "static",
+    "self_contained_runtime": true,
+    "browser_mock": false,
+    "direct_byok": true,
+    "direct_mcp_requires_cors": true,
+    "public_mcp_facade": false
+  },
+  "actions": {
+    "version": 1,
+    "module": "./site-actions.js",
+    "bridge": "./bridge/action-bridge.html",
+    "agentTools": [
+      "get_charging_state",
+      "plan_charging",
+      "show_plan"
+    ]
+  }
+}

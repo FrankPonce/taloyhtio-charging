@@ -1,0 +1,18 @@
+{
+  "protocol": "nsdeploy-link/v1",
+  "exports": [
+    {
+      "network": "charge_planner",
+      "front_man": "charge_assistant",
+      "aliases": [
+        "charge_planner",
+        "charge_assistant"
+      ],
+      "url": "charge_planner"
+    }
+  ],
+  "imports": [],
+  "link_updates": {
+    "mode": "browser-local"
+  }
+}

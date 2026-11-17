@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Charge · Cheapest EV charging with Finnish spot prices</title>
+  <meta name="description" content="Plan when to charge your electric car in Finland. Uses real 15-minute spot prices and finds the cheapest time before you need the car.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./">⚡ Charge</a>
+    <nav aria-label="Sections">
+      <a href="#plan">Plan</a>
+      <a href="#prices">Prices</a>
+      <a href="#assistant">Ask</a>
+      <a href="#how">How it works</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Finland · 15-minute spot prices</p>
+      <h1>Charge when electricity is cheapest.</h1>
+      <p class="lede">Tell us how much energy your car needs and when it must be ready. We pick the cheapest 15-minute periods before then, using real day-ahead prices.</p>
+      <p class="now">Finnish time now: <span id="now-label">…</span></p>
+    </section>
+
+    <section id="plan" class="card" aria-labelledby="plan-heading">
+      <h2 id="plan-heading">Plan your charging</h2>
+      <form id="plan-form" novalidate>
+        <div class="fields">
+          <label>Energy needed <span class="hint">kWh, 1–120</span>
+            <input id="energy" name="energyKwh" type="number" min="1" max="120" step="0.5" value="30" required>
+          </label>
+          <label>Charger power <span class="hint">kW, 1.4–22</span>
+            <input id="charger" name="chargerKw" type="number" min="1.4" max="22" step="0.1" value="11" required>
+          </label>
+          <label>Ready by <span class="hint">Finnish time</span>
+            <input id="ready-by" name="readyBy" type="datetime-local" required>
+          </label>
+        </div>
+        <p id="form-error" class="error" role="alert" hidden></p>
+        <button type="submit">Find the cheapest time</button>
+      </form>
+
+      <div id="plan-result" class="result" tabindex="-1" hidden aria-live="polite">
+        <h3>Your plan</h3>
+        <dl class="stats">
+          <div><dt>Energy cost</dt><dd id="plan-cost"></dd></div>
+          <div><dt>You save vs. charging now</dt><dd id="plan-savings"></dd></div>
+          <div><dt>Average price</dt><dd id="plan-average"></dd></div>
+          <div><dt>Done by</dt><dd id="plan-finish"></dd></div>
+        </dl>
+        <h4>Charge during</h4>
+        <ul id="plan-windows" class="windows"></ul>
+        <p class="fine">Energy cost only, at spot prices including VAT. Grid transfer fees and your seller's margin are not included.</p>
+      </div>
+    </section>
+
+    <section id="prices" class="card" aria-labelledby="prices-heading">
+      <h2 id="prices-heading">Spot prices, today and tomorrow</h2>
+      <p id="today-summary" class="summary"></p>
+      <p id="tomorrow-summary" class="summary"></p>
+      <div id="price-chart" class="chart" aria-describedby="chart-legend"></div>
+      <p id="chart-legend" class="legend"><span class="key chosen"></span> planned charging <span class="key"></span> price <span class="key past"></span> past</p>
+      <p class="fine">Prices: <a id="price-source" href="https://sähkönhintanyt.org/" rel="noopener">sähkönhintanyt.org</a> (ENTSO-E / Nord Pool day-ahead), c/kWh including 25.5% VAT.</p>
+    </section>
+
+    <section id="assistant" class="assistant card" aria-labelledby="assistant-heading">
+      <h2 id="assistant-heading">Ask Charge</h2>
+      <p>Ask in plain words, like “I need 30 kWh by 7 tomorrow”. The assistant reads this page's prices and plans for you.</p>
+      <p class="assistant-note">By default your messages and this page's data go to Cloudflare Workers AI through this site, with no account needed. You can choose your own AI provider in the settings below instead. Nothing here can be undone without asking you first.</p>
+      <p id="assistant-status" role="status">Connecting the assistant… If this message stays, the assistant could not load. You can still use the page directly.</p>
+      <div id="agent-app">
+        <div data-ns-slot="header"></div>
+        <div class="assistant-panels">
+          <div data-ns-slot="chat"></div>
+          <div data-ns-slot="agents"></div>
+        </div>
+        <div data-ns-slot="settings"></div>
+      </div>
+    </section>
+
+    <section id="how" class="card" aria-labelledby="how-heading">
+      <h2 id="how-heading">How it works</h2>
+      <ul class="plain">
+        <li>Finnish electricity is priced per 15 minutes. Tomorrow's prices are published around 14:00.</li>
+        <li>We choose the cheapest periods between now and your ready-by time, at your charger's power.</li>
+        <li>This page only plans. It does not control your charger or buy electricity.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Part of <strong>Trust Before Transaction</strong>, an entry to the Open Agentic Web Challenge. <a href="https://github.com/FrankPonce/taloyhtio-charging">Source on GitHub</a>.</p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="site.js"></script>
+</body>
+</html>
