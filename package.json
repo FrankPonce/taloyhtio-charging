@@ -10,8 +10,8 @@
   "scripts": {
     "test": "node --test \"test/*.test.mjs\" \"sites/charge/tests/*.test.mjs\"",
     "check:network": "node ../vendor/agentify-website/scripts/build_network.mjs sites/charge/charge_planner.hocon --manifest sites/charge/agent-manifest.json --check",
-    "dev:charge": "cd workers/charge && wrangler dev --port 8792",
-    "deploy:charge": "cd workers/charge && wrangler deploy",
+    "dev:charge": "cd workers/charge && npx wrangler dev --port 8792",
+    "deploy:charge": "cd workers/charge && npx wrangler deploy",
     "sign:network": "node scripts/sign-network.mjs"
   },
   "dependencies": {
