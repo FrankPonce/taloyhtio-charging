@@ -237,7 +237,7 @@ export function planSummary(plan, input) {
     `- Energy cost: **${euro(plan.costEur)}** (charging right away: ${euro(plan.baselineCostEur)}, so you save **${euro(plan.savingsEur)}**)`,
     `- Average price: ${cents(plan.averagePriceCents)} · done by ${weekdayLabel(plan.finishesAtMs)} ${helsinkiClock(plan.finishesAtMs)}`,
     "",
-    "_Energy only, at spot prices including VAT. Grid transfer fees and the seller's margin are not included._",
+    "*Energy only, at spot prices including VAT. Grid transfer fees and the seller's margin are not included.*",
   ].join("\n");
 }
 

@@ -10,6 +10,11 @@
   Access-Control-Allow-Origin: *
 /.well-known/nsdeploy-agent.json
   Access-Control-Allow-Origin: *
+/charge_planner.signature.json
+  Access-Control-Allow-Origin: *
+/.well-known/http-message-signatures-directory
+  Access-Control-Allow-Origin: *
+  Content-Type: application/http-message-signatures-directory+json
 /runtime/sandbox-worker.js
   Content-Security-Policy: default-src 'none'; script-src blob:; connect-src 'none'; worker-src 'none'
 /*
