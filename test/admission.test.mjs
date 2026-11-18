@@ -5,7 +5,7 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   KEY_DIRECTORY_PATH, attestationFromScorecard, canonicalHash, keyDirectory, newSiteKey, sha256Hex,
-  signAttestation, signNetwork, signRequest, signStatement, ATTESTATION_TYPE,
+  signAttestation, signNetwork, signRequest, signStatement, ATTESTATION_TYPE, actionsSha256,
 } from "agent-trust-kit";
 import { admit, authorizer, clearAdmissionCache } from "../src/arbiter/admission.js";
 import { handleArbiterMcp } from "../src/arbiter/mcp.js";
@@ -17,18 +17,19 @@ const TESTER = "https://tester.example";
 const POLICY = { testers: [{ origin: TESTER, index: "/attestations/index.json" }], minScore: 80, minCoverage: 80 };
 const NOW = Date.parse("2026-12-22T10:00:00Z");
 const NETWORK = { tools: [{ name: "charge_assistant", instructions: "Plan charging from real prices.", tools: [] }] };
+const ACTIONS = { version: 1, agentTools: ["plan_charging", "send_night_request"] };
 
 beforeEach(() => clearAdmissionCache());
 
 /** Build a fake web; options change one thing to make a step fail. */
-async function world({ signNet = true, servedNetwork = NETWORK, score = 100, coverage = 100, legacy = false, expired = false, failedTest = false } = {}) {
+async function world({ signNet = true, servedNetwork = NETWORK, score = 100, coverage = 100, legacy = false, expired = false, failedTest = false, servedActions = ACTIONS } = {}) {
   const caller = await newSiteKey();
   const tester = await newSiteKey();
   const files = new Map();
   const put = (url, body) => files.set(url, typeof body === "string" ? body : JSON.stringify(body));
   put(`${CALLER}${KEY_DIRECTORY_PATH}`, await keyDirectory([caller.publicJwk]));
   put(`${TESTER}${KEY_DIRECTORY_PATH}`, await keyDirectory([tester.publicJwk]));
-  put(`${CALLER}/agent-manifest.json`, { networks: [{ name: "charge_planner", front_man: "charge_assistant", hocon: "./charge_planner.network.json" }] });
+  put(`${CALLER}/agent-manifest.json`, { networks: [{ name: "charge_planner", front_man: "charge_assistant", hocon: "./charge_planner.network.json" }], actions: servedActions });
   put(`${CALLER}/charge_planner.network.json`, servedNetwork);
   if (signNet) put(`${CALLER}/charge_planner.signature.json`, await signNetwork({ network: servedNetwork, name: "charge_planner", origin: CALLER, privateJwk: caller.privateJwk }));
 
@@ -40,7 +41,7 @@ async function world({ signNet = true, servedNetwork = NETWORK, score = 100, cov
   if (legacy) {
     file = await signStatement({ typ: ATTESTATION_TYPE, iss: TESTER, sub, network_sha256: sha, model: { name: "m" }, results: {}, score, iat: new Date(iat).toISOString(), exp: new Date(iat + 30 * 864e5).toISOString() }, tester.privateJwk);
   } else {
-    const card = { target: { network_url: sub, network_sha256: sha }, model: { name: "alibaba/qwen3.8-flash", routerHost: "eu.api.otari.ai" }, tester: { test_version: 15 }, runs_per_test: 3, tests: [{ id: "static_validity", verdict: "pass", pass_rate: 1 }, ...(failedTest ? [{ id: "grounding_on_failure", verdict: "fail", pass_rate: 0 }] : [])], summary: { score, coverage, scoring: "decided/1" } };
+    const card = { target: { network_url: sub, network_sha256: sha, manifest_url: `${CALLER}/agent-manifest.json`, actions_sha256: await actionsSha256({ actions: ACTIONS }) }, model: { name: "alibaba/qwen3.8-flash", routerHost: "eu.api.otari.ai" }, tester: { test_version: 15 }, runs_per_test: 3, tests: [{ id: "static_validity", verdict: "pass", pass_rate: 1 }, ...(failedTest ? [{ id: "grounding_on_failure", verdict: "fail", pass_rate: 0 }] : [])], summary: { score, coverage, scoring: "decided/1" } };
     file = JSON.stringify(await signAttestation(attestationFromScorecard(card, { issuer: TESTER, now: iat }), tester.privateJwk));
   }
   put(`${TESTER}/attestations/x.att`, file);
@@ -93,7 +94,11 @@ test("refused at each step, with the reason", async () => {
   assert.match((await step(await world({ score: 71 }))).reason, /score 71 is below 80/);
   assert.match((await step(await world({ coverage: 60 }))).reason, /coverage 60 is below 80/);
   assert.match((await step(await world({ expired: true }))).reason, /expired/);
-  assert.match((await step(await world({ legacy: true }))).reason, /coverage unknown is below 80/);
+  assert.match((await step(await world({ legacy: true }))).reason, /does not cover the site's actions/);
+  // F39: a new action declared in the manifest alone (network and signature unchanged).
+  const newAction = await step(await world({ servedActions: { ...ACTIONS, agentTools: [...ACTIONS.agentTools, "pay_now"] } }));
+  assert.equal(newAction.step, "attestation");
+  assert.match(newAction.reason, /different set of site actions/);
   // A high average does not hide a test that failed outright (F45: Spot Deals averaged 81).
   const hidden = await step(await world({ score: 81, failedTest: true }));
   assert.equal(hidden.step, "attestation");

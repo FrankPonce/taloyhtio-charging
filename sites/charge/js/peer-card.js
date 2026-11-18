@@ -42,6 +42,8 @@ export function describePeer(peer) {
     let line = `✓ tested ${a.score}/100 (coverage ${a.coverage}%) on ${shortModel(a.model)} by ${hostOf(a.iss)}`;
     if (a.results?.private_context_leak === "pass") line += "; kept private details private";
     parts.push(line);
+  } else if (/site actions|different version of the network/.test(a.reason || "")) {
+    parts.push("⚠ changed since it was tested");
   } else if (Number.isFinite(a.score)) {
     parts.push(`⚠ tested ${a.score}/100 but not vouched for`);
   } else {
