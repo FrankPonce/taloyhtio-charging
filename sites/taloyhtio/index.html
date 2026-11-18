@@ -42,8 +42,17 @@
 
     <section id="request" class="card" aria-labelledby="request-heading">
       <h2 id="request-heading">Request a night slot</h2>
-      <p id="request-status" class="summary">Night-slot requests open with the fair-share scheduler (coming next).</p>
+      <p id="request-status" class="summary">Night-slot requests are open: send one before 18:00 for tonight.</p>
       <p id="request-how"></p>
+      <form id="request-form" class="request-form" autocomplete="off">
+        <label>Resident code <input name="code" type="password" required minlength="6" autocomplete="off" spellcheck="false"></label>
+        <label>Energy (kWh) <input name="energyKwh" type="number" min="1" max="120" step="0.5" value="30" required></label>
+        <label>Ready by <input name="readyBy" type="time" value="07:00" required></label>
+        <button type="submit">Send tonight's request</button>
+        <button type="button" id="receipt-button">Check my receipt</button>
+      </form>
+      <p id="request-result" class="summary" role="status"></p>
+      <p class="fine">Your request goes only to this site's scheduler, which signs your receipt. The code is not saved in your browser.</p>
       <p class="fine">Not sure how much to charge? <a href="https://charge.frankmp12357.workers.dev/">Charge</a> plans the cheapest time from spot prices.</p>
     </section>
 
@@ -68,6 +77,7 @@
   </footer>
 
   <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/request.js"></script>
   <script type="module" src="site.js"></script>
 </body>
 </html>

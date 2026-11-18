@@ -96,11 +96,13 @@ test("the front agent's fixed facts match the page's rules (partners only see th
   // (a live run on gpt-oss-20b embellished them when they were missing).
   const fixed = instructions(loaded, "koivurinne_assistant").split("\n").find((l) => l.startsWith("Fixed rules"));
   assert.ok(fixed, "a fixed-rules line for partner runs");
-  assert.equal(RULES.requests.status, "coming");
-  assert.match(fixed, /requests are not open yet/);
-  assert.ok(fixed.includes(`request by ${RULES.requests.deadline}`), "18:00 is the request deadline, not the ready-by time");
+  assert.equal(RULES.requests.status, "open");
+  assert.match(fixed, /night-slot requests are open/);
+  assert.ok(fixed.includes(`request per night by ${RULES.requests.deadline}`), "18:00 is the request deadline, not the ready-by time");
   assert.ok(fixed.includes(`${RULES.night.sharedLimitKw} kW is never exceeded`));
-  assert.match(fixed, /both the energy in kWh and the time the car must be ready/);
+  assert.match(fixed, /the kWh, ready-by time and resident code/);
+  assert.match(fixed, /final request/);
+  assert.match(fixed, new RegExp(`signed receipt after ${RULES.requests.deadline}`));
   assert.ok(fixed.includes(`All ${["four", "five", "six"][RULES.chargers.count - 4]} chargers share ${RULES.night.sharedLimitKw} kW`));
   assert.match(RULES.fairShare[0], /ready earliest is planned first/);
 });
@@ -126,7 +128,7 @@ test("the read tool runs through the agent loop and returns the rules with page 
   assert.equal(receipt.status, "succeeded");
   assert.equal(receipt.result.night.sharedLimitKw, 22);
   assert.equal(receipt.result.simulated, true);
-  assert.equal(receipt.result.requests.status, "coming");
+  assert.equal(receipt.result.requests.status, "open");
   assert.equal(receipt.result.page.requestUrl, `${BASE}/#request`);
   assert.equal(receipt.result.page.chargePlannerUrl, "https://charge.frankmp12357.workers.dev/");
   assert.ok(model.toolNames(0).includes(SPECIALIST));
@@ -163,7 +165,7 @@ test("a declined partner call contacts nothing and says so to the model", async 
 test("the page shows the rules from RULES and says the company is simulated", async () => {
   assert.match(document.getElementById("chargers").textContent, /^4 chargers, 11 kW each/);
   assert.match(document.getElementById("night").textContent, /22:00–07:00: the chargers share 22 kW/);
-  assert.match(document.getElementById("request-status").textContent, /open with the fair-share scheduler/);
+  assert.match(document.getElementById("request-status").textContent, /requests are open: send one before 18:00/);
   assert.equal(document.getElementById("fair-share").children.length, RULES.fairShare.length);
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(html, /fictional/);

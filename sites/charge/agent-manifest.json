@@ -78,7 +78,9 @@
     "agentTools": [
       "get_charging_state",
       "plan_charging",
-      "show_plan"
+      "show_plan",
+      "send_night_request",
+      "get_night_receipt"
     ]
   }
 }

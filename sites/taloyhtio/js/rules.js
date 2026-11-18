@@ -14,11 +14,12 @@ export const RULES = {
   },
   day: { sharedLimitKw: 11, note: "Daytime (07:00–22:00): first come, first served, up to 11 kW in total." },
   requests: {
-    status: "coming",
-    statusNote: "Night-slot requests open with the fair-share scheduler (coming next). Until then, use the chargers first come, first served.",
+    status: "open",
+    statusNote: "Night-slot requests are open: send one before 18:00 for tonight, on this page or through Charge. After 18:00 the scheduler plans the night and signs your receipt.",
     deadline: "18:00",
     needs: ["energy in kWh", "ready-by time", "your resident code (given by the board)"],
-    how: "Residents send one request per night before 18:00 with the energy needed and the ready-by time. The scheduler then gives each car its own slots.",
+    how: "Residents send one request per night before 18:00 with the energy needed and the ready-by time. A request is final. After 18:00 the scheduler gives each car its own slots and signs a receipt with the plan and cost.",
+    where: ["the form on this page", "Charge, whose server signs the request so the scheduler can check it"],
   },
   fairShare: [
     "The car that must be ready earliest is planned first.",

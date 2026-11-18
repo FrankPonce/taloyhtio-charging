@@ -4,6 +4,7 @@
 // Each action wraps a method of the page object, so the assistant and the page's own
 // form share one set of rules. Import the page script by the same URL the page uses.
 import { App } from "./js/app.js";
+import { Housing } from "./js/housing.js";
 import { LIMITS } from "./js/planner.js";
 
 const planProperties = {
@@ -40,6 +41,45 @@ class SiteActions {
     actions.register(SiteActions.readStateAction());
     actions.register(SiteActions.planAction());
     actions.register(SiteActions.showPlanAction());
+    actions.register(SiteActions.sendNightRequestAction());
+    actions.register(SiteActions.nightReceiptAction());
+  }
+
+  static sendNightRequestAction() {
+    return {
+      name: "send_night_request",
+      description: "Send the visitor's one night-slot request to As Oy Koivurinne's shared chargers (a simulated housing company), signed by this site. Final: it cannot be changed, and only one request per resident per night is accepted; requests close at 18:00. The visitor's resident code is read from the page, never from the chat: never ask for it. Returns ok false with a reason (for example no code saved on the page) and nothing sent.",
+      effect: "irreversible",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["energyKwh", "readyBy"],
+        properties: {
+          energyKwh: { ...planProperties.energyKwh, description: "Energy needed, in kWh, from the visitor." },
+          readyBy: { ...planProperties.readyBy, description: "When the car must be ready, Finnish time, YYYY-MM-DDTHH:MM, between 22:15 and 07:00 the next morning." },
+          chargerKw: { type: "number", minimum: 1.4, maximum: 11, description: "Optional: the car's charging power in kW (the housing chargers give at most 11)." },
+        },
+      },
+      execute: SiteActions.sendNightRequest,
+    };
+  }
+
+  static sendNightRequest(args) {
+    return Housing.page.sendNightRequest(args);
+  }
+
+  static nightReceiptAction() {
+    return {
+      name: "get_night_receipt",
+      description: "Read the plan and cost for the latest night-slot request sent from this browser: pending until 18:00, then the housing company's signed receipt (charging windows, kWh delivered, total cost).",
+      effect: "read",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      execute: SiteActions.nightReceipt,
+    };
+  }
+
+  static nightReceipt() {
+    return Housing.page.latestReceipt();
   }
 
   static readStateAction() {
