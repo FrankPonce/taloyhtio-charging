@@ -62,6 +62,11 @@ export class App {
         chargerKw: { ...LIMITS.chargerKw },
         readyBy: "Must be after now and within the days whose prices are published.",
       },
+      // Partner sites the page links to, read from the page's own links.
+      partners: [{
+        name: "As Oy Koivurinne (a simulated housing company with shared chargers)",
+        url: this.doc?.getElementById("housing-link")?.getAttribute("href") || "https://taloyhtio.frankmp12357.workers.dev/",
+      }],
     };
   }
 

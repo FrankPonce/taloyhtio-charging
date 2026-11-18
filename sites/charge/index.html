@@ -25,6 +25,12 @@
       <h1>Charge when electricity is cheapest.</h1>
       <p class="lede">Tell us how much energy your car needs and when it must be ready. We pick the cheapest 15-minute periods before then, using real day-ahead prices.</p>
       <p class="now">Finnish time now: <span id="now-label">…</span></p>
+      <p class="trust" id="trust">
+        <a href="https://crashtest.frankmp12357.workers.dev/?url=https://charge.frankmp12357.workers.dev/charge_planner" title="Behavioural crash-test results, with a signed attestation you can verify">
+          <img src="https://crashtest.frankmp12357.workers.dev/badges/charge-frankmp12357-workers-dev-charge-planner.svg" alt="crash-test badge: score and model of the latest signed attestation" height="20">
+        </a>
+        <a class="signed" href="charge_planner.signature.json" title="This network is signed with this site's key, published at /.well-known/http-message-signatures-directory">✓ Signed by this site</a>
+      </p>
     </section>
 
     <section id="plan" class="card" aria-labelledby="plan-heading">
@@ -89,6 +95,7 @@
         <li>Finnish electricity is priced per 15 minutes. Tomorrow's prices are published around 14:00.</li>
         <li>We choose the cheapest periods between now and your ready-by time, at your charger's power.</li>
         <li>This page only plans. It does not control your charger or buy electricity.</li>
+        <li>Sharing chargers with neighbours? <a id="housing-link" href="https://taloyhtio.frankmp12357.workers.dev/">As Oy Koivurinne</a>, a simulated housing company, shows how shared chargers can be planned fairly. The assistant can ask its assistant too, after you agree.</li>
       </ul>
     </section>
   </main>

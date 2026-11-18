@@ -1,0 +1,82 @@
+{
+  "brand": "As Oy Koivurinne",
+  "networks": [
+    {
+      "name": "koivurinne_charging",
+      "front_man": "koivurinne_assistant",
+      "hocon": "./koivurinne_charging.network.json",
+      "description": "Ask about the shared EV chargers of As Oy Koivurinne (a simulated housing company): the night power limit, night-slot requests, fair sharing and billing.",
+      "tags": [
+        "agentified-website",
+        "housing-company",
+        "ev-charging",
+        "finland",
+        "simulated"
+      ],
+      "sample_queries": [
+        "How does charging work at night here?",
+        "What do I need to request a night slot, and by when?",
+        "How is my charging billed?",
+        "When is electricity cheapest tonight?",
+        "Reserve charger P2 for me tonight."
+      ]
+    }
+  ],
+  "llm_router": {
+    "base_url": "https://taloyhtio.frankmp12357.workers.dev/api/llm/v1",
+    "mock": false,
+    "byok_router": "https://api.otari.ai/api/v1"
+  },
+  "allowed_peers": [
+    "https://charge.frankmp12357.workers.dev"
+  ],
+  "peer_policy": {
+    "mode": "closed",
+    "deny_origins": [],
+    "note": "Calls the partner sites in allowed_peers only after the visitor agrees on a card."
+  },
+  "agent_mcp": {
+    "protocol": "nsdeploy-agent-mcp/v1",
+    "network": "koivurinne_charging",
+    "front_man": "koivurinne_assistant",
+    "available": false,
+    "reason": "This is a static bundle; a public MCP facade requires an application host."
+  },
+  "theme": {
+    "primary": "#2f4a6b"
+  },
+  "linking": {
+    "protocol": "nsdeploy-link/v1",
+    "exports": [
+      {
+        "network": "koivurinne_charging",
+        "front_man": "koivurinne_assistant",
+        "aliases": [
+          "koivurinne_charging",
+          "koivurinne_assistant"
+        ],
+        "url": "koivurinne_charging"
+      }
+    ],
+    "imports": [],
+    "link_updates": {
+      "mode": "browser-local"
+    }
+  },
+  "deployment": {
+    "mode": "static",
+    "self_contained_runtime": true,
+    "browser_mock": false,
+    "direct_byok": true,
+    "direct_mcp_requires_cors": true,
+    "public_mcp_facade": false
+  },
+  "actions": {
+    "version": 1,
+    "module": "./site-actions.js",
+    "bridge": "./bridge/action-bridge.html",
+    "agentTools": [
+      "get_charging_rules"
+    ]
+  }
+}

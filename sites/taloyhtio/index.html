@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>As Oy Koivurinne · Shared EV chargers</title>
+  <meta name="description" content="Rules for the shared electric-car chargers of As Oy Koivurinne, a (simulated) Finnish housing company: night power limit, slot requests and fair sharing.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./">🏠 As Oy Koivurinne</a>
+    <nav aria-label="Sections">
+      <a href="#rules">Rules</a>
+      <a href="#request">Night slots</a>
+      <a href="#assistant">Ask</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Simulated housing company · demo</p>
+      <h1>Four shared chargers, one fair plan.</h1>
+      <p class="lede">The residents of As Oy Koivurinne share four car chargers. At night they share one power limit, so requests are planned fairly: earliest deadline first, cheapest slots, never over the limit.</p>
+      <p class="fine">As Oy Koivurinne is fictional. It is part of the Trust Before Transaction demo; no real residents or bills are involved.</p>
+    </section>
+
+    <section id="rules" class="card" aria-labelledby="rules-heading">
+      <h2 id="rules-heading">The rules</h2>
+      <ul class="plain">
+        <li id="chargers">4 chargers, 11 kW each, in the shared parking area.</li>
+        <li id="night">22:00–07:00: the chargers share 22 kW.</li>
+        <li id="day">Daytime: first come, first served.</li>
+        <li id="billing">You pay for your own slots only.</li>
+      </ul>
+      <h3>How the night is shared</h3>
+      <ul id="fair-share" class="plain"></ul>
+      <h3>What this site cannot do</h3>
+      <ul id="cannot" class="plain"></ul>
+    </section>
+
+    <section id="request" class="card" aria-labelledby="request-heading">
+      <h2 id="request-heading">Request a night slot</h2>
+      <p id="request-status" class="summary">Night-slot requests open with the fair-share scheduler (coming next).</p>
+      <p id="request-how"></p>
+      <p class="fine">Not sure how much to charge? <a href="https://charge.frankmp12357.workers.dev/">Charge</a> plans the cheapest time from spot prices.</p>
+    </section>
+
+    <section id="assistant" class="assistant card" aria-labelledby="assistant-heading">
+      <h2 id="assistant-heading">Ask about the chargers</h2>
+      <p>Ask in plain words, like “How does the night limit work?” or “What do I need to request a slot?”. The assistant reads this page's rules.</p>
+      <p class="assistant-note">By default your messages and this page's data go to Cloudflare Workers AI through this site, with no account needed. You can choose your own AI provider in the settings below instead.</p>
+      <p id="assistant-status" role="status">Connecting the assistant… If this message stays, the assistant could not load. You can still use the page directly.</p>
+      <div id="agent-app">
+        <div data-ns-slot="header"></div>
+        <div class="assistant-panels">
+          <div data-ns-slot="chat"></div>
+          <div data-ns-slot="agents"></div>
+        </div>
+        <div data-ns-slot="settings"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Part of <strong>Trust Before Transaction</strong>, an entry to the Open Agentic Web Challenge. <a href="https://github.com/FrankPonce/taloyhtio-charging">Source on GitHub</a>.</p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="site.js"></script>
+</body>
+</html>

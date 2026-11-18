@@ -17,6 +17,7 @@
         "I need 30 kWh by 07:00 tomorrow with an 11 kW charger. When should I charge, and what will it cost?",
         "How much do I save by charging 40 kWh overnight instead of right now, at 7.4 kW, ready by 08:00 tomorrow?",
         "Show a plan on the page for 20 kWh by 06:30 tomorrow at 11 kW.",
+        "How does As Oy Koivurinne share its chargers at night?",
         "Start charging my car now."
       ]
     }
@@ -26,11 +27,13 @@
     "mock": false,
     "byok_router": "https://api.otari.ai/api/v1"
   },
-  "allowed_peers": [],
+  "allowed_peers": [
+    "https://taloyhtio.frankmp12357.workers.dev"
+  ],
   "peer_policy": {
     "mode": "closed",
     "deny_origins": [],
-    "note": "Local agents and page-local actions only."
+    "note": "Calls the partner sites in allowed_peers only after the visitor agrees on a card."
   },
   "agent_mcp": {
     "protocol": "nsdeploy-agent-mcp/v1",

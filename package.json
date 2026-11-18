@@ -8,11 +8,15 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.mjs\" \"sites/charge/tests/*.test.mjs\"",
+    "test": "node --test \"test/*.test.mjs\" \"sites/charge/tests/*.test.mjs\" \"sites/taloyhtio/tests/*.test.mjs\"",
     "check:network": "node ../vendor/agentify-website/scripts/build_network.mjs sites/charge/charge_planner.hocon --manifest sites/charge/agent-manifest.json --check",
     "dev:charge": "cd workers/charge && npx wrangler dev --port 8792",
     "deploy:charge": "cd workers/charge && npx wrangler deploy",
-    "sign:network": "node scripts/sign-network.mjs"
+    "sign:network": "node scripts/sign-network.mjs",
+    "check:taloyhtio": "node ../vendor/agentify-website/scripts/build_network.mjs sites/taloyhtio/koivurinne_charging.hocon --manifest sites/taloyhtio/agent-manifest.json --check",
+    "sign:taloyhtio": "node scripts/sign-network.mjs taloyhtio",
+    "dev:taloyhtio": "cd workers/taloyhtio && npx wrangler dev --port 8794",
+    "deploy:taloyhtio": "cd workers/taloyhtio && npx wrangler deploy"
   },
   "dependencies": {
     "agent-trust-kit": "github:FrankPonce/agent-trust-kit"

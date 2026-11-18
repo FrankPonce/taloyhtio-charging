@@ -1,0 +1,10 @@
+{
+  "networks": [
+    {
+      "name": "koivurinne_charging"
+    }
+  ],
+  "actions": {
+    "version": 1
+  }
+}

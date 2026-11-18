@@ -1,0 +1,18 @@
+{
+  "protocol": "nsdeploy-link/v1",
+  "exports": [
+    {
+      "network": "koivurinne_charging",
+      "front_man": "koivurinne_assistant",
+      "aliases": [
+        "koivurinne_charging",
+        "koivurinne_assistant"
+      ],
+      "url": "koivurinne_charging"
+    }
+  ],
+  "imports": [],
+  "link_updates": {
+    "mode": "browser-local"
+  }
+}

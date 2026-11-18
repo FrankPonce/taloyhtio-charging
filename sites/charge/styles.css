@@ -37,6 +37,10 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 32px) 4
 .hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.05; margin: 8px 0 12px; }
 .lede { font-size: 1.12rem; color: var(--muted); max-width: 62ch; margin: 0; }
 .now { color: var(--muted); font-size: .95rem; }
+.trust { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 4px 0 0; font-size: .9rem; }
+.trust img { display: block; }
+.trust .signed { color: var(--brand); font-weight: 600; text-decoration: none; }
+.trust .signed:hover { text-decoration: underline; }
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(18px, 3vw, 28px); }
 .card h2 { margin-top: 0; }
