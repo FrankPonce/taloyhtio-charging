@@ -13,6 +13,11 @@
     "not_found_handling": "404-page"
   },
   "ai": { "binding": "AI" },
+  // Arbiter (M5a): requests, scheduled nights, append-only receipts, admissions. EU (weur).
+  //   npx wrangler d1 migrations apply taloyhtio-arbiter --remote
+  "d1_databases": [
+    { "binding": "ARBITER_DB", "database_name": "taloyhtio-arbiter", "database_id": "3356ddcb-52b2-40eb-8028-a08cdf99b651", "migrations_dir": "migrations" }
+  ],
   "ratelimits": [
     { "name": "SESSION_LIMIT", "namespace_id": "3001", "simple": { "limit": 10, "period": 60 } },
     { "name": "LLM_LIMIT", "namespace_id": "3002", "simple": { "limit": 30, "period": 60 } },
