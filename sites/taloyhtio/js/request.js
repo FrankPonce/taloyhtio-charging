@@ -70,6 +70,26 @@ export class RequestForm {
       out.textContent = "Asking the scheduler…";
       show(await this.receipt(code));
     });
+    const demoOut = d.getElementById("demo-result");
+    d.getElementById("demo-button")?.addEventListener("click", async () => {
+      demoOut.textContent = "Getting a demo code…";
+      const r = await this.demoCode();
+      demoOut.className = r.ok ? "summary" : "error";
+      demoOut.textContent = r.text;
+      if (r.ok) form.elements.code.value = r.code;
+    });
+  }
+
+  /** Ask this site for a one-night demo resident code (simulated). */
+  async demoCode() {
+    const resp = await this.fetchImpl("/api/demo-resident", { method: "POST" });
+    const body = await resp.json().catch(() => null);
+    if (!resp.ok || !body?.code) return { ok: false, text: body?.error || `No demo code (HTTP ${resp.status}).` };
+    return {
+      ok: true,
+      code: body.code,
+      text: `Your demo code: ${body.code} (simulated resident ${body.resident}). Keep it to read your receipt. It works for the night of ${body.night}; requests close at 18:00.`,
+    };
   }
 }
 

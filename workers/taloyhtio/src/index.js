@@ -1,6 +1,7 @@
 // As Oy Koivurinne (simulated housing company) Worker: the shared site Worker (static site,
 // session tokens, default-model proxy; ../../charge/src) plus the arbiter's MCP server.
 //
+//   POST /api/demo-resident  a self-serve simulated resident code (src/arbiter/demo.js)
 //   POST /mcp     arbiter MCP (src/arbiter/mcp.js): rules, sealed requests, signed receipts.
 //                 Writes and receipts need the site's own page or an admitted caller
 //                 (src/arbiter/admission.js: RFC 9421 signature, signed network, attestation).
@@ -13,6 +14,7 @@
 import site from "../../charge/src/index.js";
 import { handleArbiterMcp } from "../../../src/arbiter/mcp.js";
 import { authorizer } from "../../../src/arbiter/admission.js";
+import { handleDemoResident } from "../../../src/arbiter/demo.js";
 
 function receiptKey(env) {
   try {
@@ -41,6 +43,14 @@ export default {
       } catch (error) {
         console.error("arbiter error", error?.stack || error);
         return new Response(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32603, message: "Internal error." } }), { status: 500, headers: { "content-type": "application/json" } });
+      }
+    }
+    if (url.pathname === "/api/demo-resident") {
+      try {
+        return await handleDemoResident(request, env);
+      } catch (error) {
+        console.error("demo resident error", error?.stack || error);
+        return new Response(JSON.stringify({ error: "Internal error." }), { status: 500, headers: { "content-type": "application/json" } });
       }
     }
     return site.fetch(request, env, ctx);

@@ -60,11 +60,45 @@ export function readyByOf(night, clock) {
   return ms;
 }
 
-async function residentByCode(db, code) {
+/**
+ * The resident a code belongs to. Demo codes (self-serve, simulated) work for one night
+ * only and are refused after they expire.
+ *
+ * :return: {id, kind: "board"|"demo", night: the demo code's night or null}.
+ */
+async function residentByCode(db, code, now = Date.now()) {
   if (typeof code !== "string" || code.trim().length < 6) throw new ArbiterError("A resident code from the board is needed.", "unknown_resident");
-  const row = await db.prepare("SELECT id FROM residents WHERE code_sha256 = ?").bind(await sha256Hex(code.trim())).first();
+  const row = await db.prepare("SELECT id, kind, night, expires_at FROM residents WHERE code_sha256 = ?").bind(await sha256Hex(code.trim())).first();
   if (!row) throw new ArbiterError("That resident code is not valid.", "unknown_resident");
-  return row.id;
+  if (row.expires_at && Date.parse(row.expires_at) <= now) throw new ArbiterError("That demo code has expired. Get a new one on the housing company's page.", "expired");
+  return { id: row.id, kind: row.kind ?? "board", night: row.night ?? null };
+}
+
+/** Demo residents per night, at most (so demo cars can't fill the night). */
+export const DEMO_PER_NIGHT = 50;
+
+/**
+ * Issue a self-serve demo resident (SIMULATED) for the night open now.
+ *
+ * :param opts: {now}.
+ * :return: {code, resident, night, expires_at, requests_close_at}. The code is shown once;
+ *     only its hash is stored.
+ * :raises ArbiterError: When the night's demo places are used up.
+ */
+export async function issueDemoResident(db, { now = Date.now() } = {}) {
+  const night = openNight(now);
+  const terms = nightTerms(night);
+  const { results } = await db.prepare("SELECT COUNT(*) AS n FROM residents WHERE kind = 'demo' AND night = ?").bind(night).all();
+  if (results[0].n >= DEMO_PER_NIGHT) throw new ArbiterError(`All ${DEMO_PER_NIGHT} demo places for the night of ${night} are taken. Try again tomorrow.`, "demo_full");
+  const ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+  const part = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => ALPHABET[b % ALPHABET.length]).join("");
+  const code = `demo-${part()}-${part()}`;
+  const resident = `D-${part()}`;
+  const expiresAt = new Date(terms.untilMs + 24 * 3600_000).toISOString(); // a day after the night, to read the receipt
+  await db.prepare(
+    "INSERT INTO residents (id, code_sha256, label, simulated, created_at, kind, night, expires_at) VALUES (?, ?, ?, 1, ?, 'demo', ?, ?)",
+  ).bind(resident, await sha256Hex(code), `Demo resident ${resident} (simulated)`, new Date(now).toISOString(), night, expiresAt).run();
+  return { code, resident, night, expires_at: expiresAt, requests_close_at: new Date(terms.deadlineMs).toISOString() };
 }
 
 const randomId = (prefix) => `${prefix}_${[...crypto.getRandomValues(new Uint8Array(12))].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
@@ -80,8 +114,10 @@ const randomId = (prefix) => `${prefix}_${[...crypto.getRandomValues(new Uint8Ar
  * :raises ArbiterError: With a reason the resident can act on.
  */
 export async function submitRequest(db, input, { now = Date.now(), callerNetworkSha256 = null } = {}) {
-  const resident = await residentByCode(db, input.residentCode);
-  const night = input.night ?? openNight(now);
+  const who = await residentByCode(db, input.residentCode, now);
+  const resident = who.id;
+  const night = input.night ?? who.night ?? openNight(now);
+  if (who.kind === "demo" && night !== who.night) throw new ArbiterError(`This demo code is for the night of ${who.night} only.`, "wrong_night");
   const terms = nightTerms(night);
   if (now >= terms.deadlineMs) throw new ArbiterError(`Requests for the night of ${night} closed at ${RULES.requests.deadline}.`, "closed");
   if (terms.fromMs - now > 7 * 24 * 3600_000) throw new ArbiterError("Requests open at most a week ahead.", "too_early");
@@ -175,7 +211,7 @@ export async function scheduleIfDue(db, night, { now = Date.now(), prices = null
  * :return: {status: "pending", requests_close_at} or {status: "scheduled", receipt_jws, receipt}.
  */
 export async function getReceipt(db, { requestId, residentCode }, opts = {}) {
-  const resident = await residentByCode(db, residentCode);
+  const resident = (await residentByCode(db, residentCode, opts.now ?? Date.now())).id;
   const req = await db.prepare("SELECT id, night, resident FROM requests WHERE id = ?").bind(String(requestId ?? "")).first();
   // Same answer for "no such request" and "not yours": nothing to learn about others.
   if (!req || req.resident !== resident) throw new ArbiterError("No request with that ID for this resident.", "not_found");
