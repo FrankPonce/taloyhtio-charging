@@ -110,6 +110,12 @@ export async function handleArbiterMcp(request, env, ctx) {
     return json(400, rpcError(msg?.id, RPC.INVALID_REQUEST, "Invalid JSON-RPC 2.0 request."));
   }
   if (!("id" in msg)) return json(202, null); // notifications
+  // The admission check needs the exact body (its digest is signed); run it at most once.
+  if (typeof ctx.authorize === "function") {
+    const check = ctx.authorize;
+    let decision = null;
+    ctx = { ...ctx, authorize: () => (decision ??= check(text)) };
+  }
   try {
     return json(200, { jsonrpc: "2.0", id: msg.id, result: await dispatch(msg, env, ctx) });
   } catch (error) {
@@ -177,6 +183,18 @@ function db(env) {
   return env.ARBITER_DB;
 }
 
+/**
+ * Sending a request or reading a receipt needs an admitted caller: the housing site's own
+ * page, or another site's server that passed the admission check (admission.js). The
+ * host decides via ctx.authorize(); without one (tests of the service alone) all callers pass.
+ */
+async function admitted(ctx) {
+  if (typeof ctx.authorize !== "function") return { ok: true };
+  const d = await ctx.authorize();
+  if (!d.ok) throw new ArbiterError(`Not admitted (${d.step}): ${d.reason}`, "not_admitted");
+  return d;
+}
+
 const eur = (x) => `€${x.toFixed(2)}`;
 const hhmm = (iso) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Europe/Helsinki", hour: "2-digit", minute: "2-digit" });
 
@@ -190,15 +208,17 @@ const HANDLERS = {
   },
 
   async submit_charging_request(args, env, ctx) {
+    const caller = await admitted(ctx);
     const r = await submitRequest(db(env), {
       residentCode: args.resident_code, energyKwh: args.energy_kwh, readyBy: args.ready_by, chargerKw: args.charger_kw, night: args.night,
-    }, { now: ctx.now ?? Date.now(), callerNetworkSha256: ctx.callerNetworkSha256 ?? null });
+    }, { now: ctx.now ?? Date.now(), callerNetworkSha256: caller.network_sha256 ?? null });
     const text = `Request received for the night of ${r.night}: ${args.energy_kwh} kWh by ${args.ready_by}. Request ID ${r.request_id}. `
       + `Commitment ${r.commitment.slice(0, 16)}… (proof of exactly what was asked). The night is planned after ${hhmm(r.requests_close_at)}; then get_receipt returns the signed plan and cost.`;
     return toolResult(text, r);
   },
 
   async get_receipt(args, env, ctx) {
+    await admitted(ctx);
     const r = await getReceipt(db(env), { requestId: args.request_id, residentCode: args.resident_code }, ctx);
     if (r.status === "pending") return toolResult(`Not planned yet: requests for the night of ${r.night} close at ${hhmm(r.requests_close_at)}. Ask again after that.`, r);
     const s = r.receipt.schedule;

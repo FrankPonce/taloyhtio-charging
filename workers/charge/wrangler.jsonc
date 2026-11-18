@@ -1,11 +1,21 @@
 {
-  // Charge site: static site + default-model proxy. Deploy from this folder:
+  // Charge site: static site + default-model proxy + signed link to the housing arbiter.
+  // Deploy from this folder:
   //   npx wrangler deploy
-  // Secret (once): npx wrangler secret put SESSION_SECRET
+  // Secrets (once): npx wrangler secret put SESSION_SECRET
+  //                 npx wrangler secret put REQUEST_SIGNING_JWK   (the request key's private JWK)
   "name": "charge",
   "main": "src/index.js",
   // Max date supported by the local Wrangler (4.86) is 2026-05-03.
   "compatibility_date": "2026-05-01",
+  // nodejs_compat: agent-trust-kit's RFC 9421 library needs Node's crypto.
+  // global_fetch_strictly_public: the arbiter runs on this same account; without it,
+  // same-account Worker fetches 404 (FINDINGS F34).
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "vars": {
+    "SITE_ORIGIN": "https://charge.frankmp12357.workers.dev",
+    "ARBITER_MCP_URL": "https://taloyhtio.frankmp12357.workers.dev/mcp"
+  },
   "assets": {
     "directory": "../../sites/charge",
     "binding": "ASSETS",
@@ -16,7 +26,8 @@
   "ratelimits": [
     { "name": "SESSION_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
     { "name": "LLM_LIMIT", "namespace_id": "1002", "simple": { "limit": 30, "period": 60 } },
-    { "name": "LLM_IP_LIMIT", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } }
+    { "name": "LLM_IP_LIMIT", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } },
+    { "name": "ARBITER_LIMIT", "namespace_id": "1004", "simple": { "limit": 20, "period": 60 } }
   ],
   "observability": { "enabled": true }
 }

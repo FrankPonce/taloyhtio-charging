@@ -3,11 +3,14 @@
 //   POST /api/session                  -> {token, expiresAt, model}  (rate-limited per IP)
 //   GET  /api/llm/v1/models            -> OpenAI-style model list (the runtime checks it)
 //   POST /api/llm/v1/chat/completions  -> Workers AI, OpenAI format, streamed or not
+//   POST /api/arbiter                  -> a housing arbiter's tool, signed as this site
+//                                         (only where ARBITER_MCP_URL is set; arbiter-proxy.js)
 //
 // Everything else is a static asset. The API sends no CORS headers: only this site's own
 // page may use the default model. Other sites that run this network use their own model.
 
 import { issueSession, verifySession } from "./session.js";
+import { arbiterProxy } from "./arbiter-proxy.js";
 
 export const ALLOWED_MODELS = ["@cf/openai/gpt-oss-20b", "@cf/zai-org/glm-4.7-flash"];
 const MAX_BODY_BYTES = 256 * 1024;
@@ -25,6 +28,9 @@ export default {
       if (url.pathname === "/api/session" && request.method === "POST") return await session(request, env);
       if (url.pathname === "/api/llm/v1/models" && request.method === "GET") return models();
       if (url.pathname === "/api/llm/v1/chat/completions" && request.method === "POST") return await chat(request, env);
+      if (url.pathname === "/api/arbiter" && request.method === "POST" && env.ARBITER_MCP_URL) {
+        return await arbiterProxy(request, env, { limited: (key) => limited(env.ARBITER_LIMIT, key) });
+      }
       if (url.pathname.startsWith("/api/")) return fail(404, "Not found.");
       return env.ASSETS.fetch(request);
     } catch (error) {

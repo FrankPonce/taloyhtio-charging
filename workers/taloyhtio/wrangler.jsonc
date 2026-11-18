@@ -10,7 +10,9 @@
   // Max date supported by the local Wrangler (4.86) is 2026-05-03.
   "compatibility_date": "2026-05-01",
   // The arbiter uses agent-trust-kit, whose RFC 9421 library needs Node's crypto (M5b admission).
-  "compatibility_flags": ["nodejs_compat"],
+  // The admission check fetches callers' files, e.g. Charge on this same account: without
+  // global_fetch_strictly_public, same-account Worker fetches 404 (FINDINGS F34).
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": "../../sites/taloyhtio",
     "binding": "ASSETS",
