@@ -12,41 +12,15 @@
 //
 // The housing site's own page (same origin) is the housing company itself and skips this.
 
-import { verifyAttestation, verifyNetwork, verifyRequest } from "agent-trust-kit";
-import { canonicalHash } from "agent-trust-kit";
+import { DEFAULT_TRUST_POLICY, cachingFetch, checkNetwork, verifyRequest } from "agent-trust-kit";
 
-export const DEFAULT_POLICY = Object.freeze({
-  // Testers whose attestations count, and where each publishes its index.
-  testers: [{ origin: "https://crashtest.frankmp12357.workers.dev", index: "/attestations/index.json" }],
-  minScore: 80,
-  minCoverage: 80,
-  // An average can hide a critical failure: Spot Deals averaged 81 while inventing a whole
-  // price table (FINDINGS F45). Refuse any network with a test that failed outright.
-  noFailedTests: true,
-});
+// Tester crash-test, score ≥ 80, coverage ≥ 80, and no test that failed outright: an
+// average can hide a critical failure (Spot Deals averaged 81 while inventing a whole
+// price table, FINDINGS F45). The kit's default trust policy is exactly this.
+export const DEFAULT_POLICY = DEFAULT_TRUST_POLICY;
 
 const CACHE_MS = 5 * 60_000;
-const cache = new Map(); // url -> {at, value}; per Worker isolate
-
-async function fetchJson(url, { fetchImpl, now }) {
-  const hit = cache.get(url);
-  if (hit && now - hit.at < CACHE_MS) return hit.value;
-  const resp = await fetchImpl(url, { headers: { accept: "application/json" }, redirect: "manual" });
-  if (!resp.ok) throw new Error(`${url} answered ${resp.status}`);
-  const value = await resp.json();
-  cache.set(url, { at: now, value });
-  return value;
-}
-
-async function fetchText(url, { fetchImpl, now }) {
-  const hit = cache.get(`text:${url}`);
-  if (hit && now - hit.at < CACHE_MS) return hit.value;
-  const resp = await fetchImpl(url, { redirect: "manual" });
-  if (!resp.ok) throw new Error(`${url} answered ${resp.status}`);
-  const value = await resp.text();
-  cache.set(`text:${url}`, { at: now, value });
-  return value;
-}
+const cache = new Map(); // fetched public files; per Worker isolate
 
 /** Forget cached files (tests). */
 export function clearAdmissionCache() {
@@ -66,74 +40,25 @@ const refuse = (step, reason, extra = {}) => ({ ok: false, step, reason: String(
  *     reason, agent?, network_url?}.
  */
 export async function admit(request, { policy = DEFAULT_POLICY, fetchImpl = globalThis.fetch, now = Date.now(), jwks = null } = {}) {
-  const io = { fetchImpl, now };
 
   // 1. Who is calling: an RFC 9421 signature from the caller's server.
   const sig = await verifyRequest(request, { jwks, fetchImpl });
   if (!sig.ok) return refuse("signature", `The request is not signed by a site's published key: ${sig.reason}.`);
   const agent = sig.agent;
 
-  // 2. Which agent network: the caller's published, domain-signed network.
-  let network_url;
-  let network_sha256;
-  try {
-    const base = `${agent}/`;
-    const manifest = await fetchJson(new URL("agent-manifest.json", base).href, io);
-    const entry = manifest?.networks?.[0];
-    if (!entry?.name || !entry?.hocon) return refuse("network", `${agent} publishes no agent network in agent-manifest.json.`, { agent });
-    network_url = new URL(entry.name, base).href;
-    const network = JSON.parse(await fetchText(new URL(entry.hocon, base).href, io));
-    network_sha256 = await canonicalHash(network);
-    let doc;
-    try {
-      doc = await fetchJson(new URL(`${encodeURIComponent(entry.name)}.signature.json`, base).href, io);
-    } catch {
-      return refuse("network", `${network_url} is not signed by its domain (no signature file).`, { agent, network_url });
-    }
-    const v = await verifyNetwork({ doc, network, name: entry.name, networkOrigin: agent, jwks, fetchImpl });
-    if (!v.ok) return refuse("network", `${network_url} is not validly signed by ${agent}: ${v.reason}.`, { agent, network_url });
-  } catch (error) {
-    return refuse("network", `Could not load ${agent}'s agent network: ${error.message}.`, { agent, network_url });
+  // 2 and 3: the same check a site's consent card uses for its partners (agent-trust-kit
+  // checkNetwork): the caller's published network, signed by its own domain, and an
+  // attestation from a trusted tester for exactly that network hash, meeting the policy.
+  const r = await checkNetwork({ origin: agent }, { policy, fetchImpl: cachingFetch(fetchImpl, { cache, ttlMs: CACHE_MS, now: () => now }), now, jwks });
+  const { network_url } = r;
+  if (r.error) return refuse("network", `${r.error}.`, { agent, network_url });
+  if (r.signature.status === "unsigned") return refuse("network", `${network_url} is not signed by its domain (no signature file).`, { agent, network_url });
+  if (!r.signature.ok) return refuse("network", `${network_url} is not validly signed by ${agent}: ${r.signature.reason}.`, { agent, network_url });
+  const a = r.attestation;
+  if (!a.ok) {
+    return refuse("attestation", `No trusted tester vouches for ${network_url} as published now (score ≥ ${policy.minScore}, coverage ≥ ${policy.minCoverage}${policy.noFailedTests !== false ? ", no failed test" : ""}): ${a.reason}.`, { agent, network_url });
   }
-
-  // 3. Does it behave: an attestation from a trusted tester for exactly this network hash.
-  const problems = [];
-  for (const t of policy.testers) {
-    let index;
-    try {
-      index = await fetchJson(new URL(t.index, t.origin).href, io);
-    } catch (error) {
-      problems.push(`${t.origin}: ${error.message}`);
-      continue;
-    }
-    for (const a of (index.attestations || []).filter((x) => x.sub === network_url)) {
-      const file = a.attestation ?? a.jws;
-      let signed;
-      try {
-        signed = (await fetchText(new URL(file, `${t.origin}/`).href, io)).trim();
-      } catch (error) {
-        problems.push(error.message);
-        continue;
-      }
-      const v = await verifyAttestation(signed, {
-        issuer: t.origin, fetchImpl, now,
-        expect: { sub: network_url, network_sha256, minScore: policy.minScore, minCoverage: policy.minCoverage },
-      });
-      if (v.ok) {
-        const s = v.statement;
-        const failed = Object.entries(s.results || {}).filter(([, r]) => r?.verdict === "fail").map(([id]) => id);
-        // On unless a policy explicitly sets noFailedTests: false.
-        if (policy.noFailedTests !== false && failed.length) {
-          problems.push(`failed outright: ${failed.join(", ")} (score ${s.score})`);
-          continue;
-        }
-        return { ok: true, agent, network_url, network_sha256, attestation: { iss: s.iss, score: s.score, coverage: s.coverage, model: s.model?.name ?? null, exp: s.exp } };
-      }
-      problems.push(v.reason);
-    }
-  }
-  const why = problems.length ? problems.join("; ") : "no attestation found";
-  return refuse("attestation", `No trusted tester vouches for ${network_url} as published now (score ≥ ${policy.minScore}, coverage ≥ ${policy.minCoverage}${policy.noFailedTests !== false ? ", no failed test" : ""}): ${why}.`, { agent, network_url });
+  return { ok: true, agent, network_url, network_sha256: r.network_sha256, attestation: { iss: a.iss, score: a.score, coverage: a.coverage, model: a.model, exp: a.exp } };
 }
 
 /** Record an admission decision (no resident data). */

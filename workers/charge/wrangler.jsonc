@@ -19,7 +19,7 @@
   "assets": {
     "directory": "../../sites/charge",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": ["/api/*", "/.well-known/peer-trust.json"],
     "not_found_handling": "404-page"
   },
   "ai": { "binding": "AI" },

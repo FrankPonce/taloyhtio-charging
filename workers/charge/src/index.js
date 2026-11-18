@@ -5,12 +5,14 @@
 //   POST /api/llm/v1/chat/completions  -> Workers AI, OpenAI format, streamed or not
 //   POST /api/arbiter                  -> a housing arbiter's tool, signed as this site
 //                                         (only where ARBITER_MCP_URL is set; arbiter-proxy.js)
+//   GET  /.well-known/peer-trust.json  -> what this site knows about its partners (peer-trust.js)
 //
 // Everything else is a static asset. The API sends no CORS headers: only this site's own
 // page may use the default model. Other sites that run this network use their own model.
 
 import { issueSession, verifySession } from "./session.js";
 import { arbiterProxy } from "./arbiter-proxy.js";
+import { peerTrust } from "./peer-trust.js";
 
 export const ALLOWED_MODELS = ["@cf/openai/gpt-oss-20b", "@cf/zai-org/glm-4.7-flash"];
 const MAX_BODY_BYTES = 256 * 1024;
@@ -31,6 +33,7 @@ export default {
       if (url.pathname === "/api/arbiter" && request.method === "POST" && env.ARBITER_MCP_URL) {
         return await arbiterProxy(request, env, { limited: (key) => limited(env.ARBITER_LIMIT, key) });
       }
+      if (url.pathname === "/.well-known/peer-trust.json" && request.method === "GET") return await peerTrust(request, env);
       if (url.pathname.startsWith("/api/")) return fail(404, "Not found.");
       return env.ASSETS.fetch(request);
     } catch (error) {

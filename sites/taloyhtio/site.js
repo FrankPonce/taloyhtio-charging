@@ -49,7 +49,10 @@ export class AssistantMount {
       AssistantMount.engine = booted.engine;
       AssistantMount.defaultReview = booted.engine.onActionConfirm;
       booted.engine.onActionConfirm = AssistantMount.review;
-      AssistantMount.defaultConsent = booted.engine.onConsent;
+      // Peer trust line on the consent card: signed? tested? From this site's own server
+      // (/.well-known/peer-trust.json), so no partner is contacted before the visitor agrees.
+      const { withPeerTrust } = await import("./js/peer-card.js");
+      AssistantMount.defaultConsent = withPeerTrust(booted.engine.onConsent);
       booted.engine.onConsent = AssistantMount.consent;
       // Without a key the chat cannot answer yet. This is the same test as the
       // runtime's "API key required" badge in runtime/ui.js.
