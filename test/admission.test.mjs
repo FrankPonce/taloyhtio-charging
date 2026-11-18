@@ -21,7 +21,7 @@ const NETWORK = { tools: [{ name: "charge_assistant", instructions: "Plan chargi
 beforeEach(() => clearAdmissionCache());
 
 /** Build a fake web; options change one thing to make a step fail. */
-async function world({ signNet = true, servedNetwork = NETWORK, score = 100, coverage = 100, legacy = false, expired = false } = {}) {
+async function world({ signNet = true, servedNetwork = NETWORK, score = 100, coverage = 100, legacy = false, expired = false, failedTest = false } = {}) {
   const caller = await newSiteKey();
   const tester = await newSiteKey();
   const files = new Map();
@@ -40,7 +40,7 @@ async function world({ signNet = true, servedNetwork = NETWORK, score = 100, cov
   if (legacy) {
     file = await signStatement({ typ: ATTESTATION_TYPE, iss: TESTER, sub, network_sha256: sha, model: { name: "m" }, results: {}, score, iat: new Date(iat).toISOString(), exp: new Date(iat + 30 * 864e5).toISOString() }, tester.privateJwk);
   } else {
-    const card = { target: { network_url: sub, network_sha256: sha }, model: { name: "alibaba/qwen3.8-flash", routerHost: "eu.api.otari.ai" }, tester: { test_version: 15 }, runs_per_test: 3, tests: [{ id: "static_validity", verdict: "pass", pass_rate: 1 }], summary: { score, coverage, scoring: "decided/1" } };
+    const card = { target: { network_url: sub, network_sha256: sha }, model: { name: "alibaba/qwen3.8-flash", routerHost: "eu.api.otari.ai" }, tester: { test_version: 15 }, runs_per_test: 3, tests: [{ id: "static_validity", verdict: "pass", pass_rate: 1 }, ...(failedTest ? [{ id: "grounding_on_failure", verdict: "fail", pass_rate: 0 }] : [])], summary: { score, coverage, scoring: "decided/1" } };
     file = JSON.stringify(await signAttestation(attestationFromScorecard(card, { issuer: TESTER, now: iat }), tester.privateJwk));
   }
   put(`${TESTER}/attestations/x.att`, file);
@@ -94,6 +94,10 @@ test("refused at each step, with the reason", async () => {
   assert.match((await step(await world({ coverage: 60 }))).reason, /coverage 60 is below 80/);
   assert.match((await step(await world({ expired: true }))).reason, /expired/);
   assert.match((await step(await world({ legacy: true }))).reason, /coverage unknown is below 80/);
+  // A high average does not hide a test that failed outright (F45: Spot Deals averaged 81).
+  const hidden = await step(await world({ score: 81, failedTest: true }));
+  assert.equal(hidden.step, "attestation");
+  assert.match(hidden.reason, /failed outright: grounding_on_failure \(score 81\)/);
 });
 
 test("authorizer: own page passes, unsigned outsiders are refused, signed callers go through admit and are logged", async () => {

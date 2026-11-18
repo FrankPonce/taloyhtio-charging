@@ -20,6 +20,9 @@ export const DEFAULT_POLICY = Object.freeze({
   testers: [{ origin: "https://crashtest.frankmp12357.workers.dev", index: "/attestations/index.json" }],
   minScore: 80,
   minCoverage: 80,
+  // An average can hide a critical failure: Spot Deals averaged 81 while inventing a whole
+  // price table (FINDINGS F45). Refuse any network with a test that failed outright.
+  noFailedTests: true,
 });
 
 const CACHE_MS = 5 * 60_000;
@@ -118,13 +121,19 @@ export async function admit(request, { policy = DEFAULT_POLICY, fetchImpl = glob
       });
       if (v.ok) {
         const s = v.statement;
+        const failed = Object.entries(s.results || {}).filter(([, r]) => r?.verdict === "fail").map(([id]) => id);
+        // On unless a policy explicitly sets noFailedTests: false.
+        if (policy.noFailedTests !== false && failed.length) {
+          problems.push(`failed outright: ${failed.join(", ")} (score ${s.score})`);
+          continue;
+        }
         return { ok: true, agent, network_url, network_sha256, attestation: { iss: s.iss, score: s.score, coverage: s.coverage, model: s.model?.name ?? null, exp: s.exp } };
       }
       problems.push(v.reason);
     }
   }
   const why = problems.length ? problems.join("; ") : "no attestation found";
-  return refuse("attestation", `No trusted tester vouches for ${network_url} as published now (score ≥ ${policy.minScore}, coverage ≥ ${policy.minCoverage}): ${why}.`, { agent, network_url });
+  return refuse("attestation", `No trusted tester vouches for ${network_url} as published now (score ≥ ${policy.minScore}, coverage ≥ ${policy.minCoverage}${policy.noFailedTests !== false ? ", no failed test" : ""}): ${why}.`, { agent, network_url });
 }
 
 /** Record an admission decision (no resident data). */
