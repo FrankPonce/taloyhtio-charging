@@ -189,3 +189,19 @@ test("MCP protocol: initialize, tools/list, bad arguments", async () => {
   const get = await handleArbiterMcp(new Request(`${ISSUER}/mcp`), {}, {});
   assert.equal(get.status, 405);
 });
+
+test("night load: an empty closed night is never scheduled; a closed night with requests is", async () => {
+  const { db, call, prices } = await setup();
+  const empty = await call("get_night_load", { night: "2026-12-21" }, AFTER);
+  assert.equal(empty.content[0].text, "The night of 2026-12-21 had no requests, so nothing was planned.");
+  assert.equal(prices.calls.length, 0, "no price fetch for an empty night");
+  assert.equal(await db.prepare("SELECT night FROM nights").first(), null, "no rows written");
+
+  await call("submit_charging_request", { resident_code: RESIDENTS[0].code, energy_kwh: 20, ready_by: "07:00" }, BEFORE);
+  const open = await call("get_night_load", { night: NIGHT }, BEFORE);
+  assert.match(open.content[0].text, /not planned yet/);
+  const planned = await call("get_night_load", { night: NIGHT }, AFTER);
+  assert.equal(planned.structuredContent.scheduled, true);
+  assert.equal(planned.structuredContent.requests, 1);
+  assert.ok(planned.structuredContent.load.length > 0);
+});

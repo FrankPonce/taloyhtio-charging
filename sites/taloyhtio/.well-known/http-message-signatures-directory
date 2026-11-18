@@ -7,6 +7,14 @@
       "kid": "NJgJDjD5nurDf2sFaHsFKvyhHKY6kspd54AOCxB-kNs",
       "alg": "EdDSA",
       "use": "sig"
+    },
+    {
+      "crv": "Ed25519",
+      "x": "eRLg49lKRHeaybqMoPW9tNm1timFR9YpFieQqFke0HU",
+      "kty": "OKP",
+      "kid": "P2fR3LqPjLiOZw0H7mpYsOLfRx1jvEtcVpxTdysRQlU",
+      "alg": "EdDSA",
+      "use": "sig"
     }
   ]
 }

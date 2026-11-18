@@ -211,7 +211,8 @@ const HANDLERS = {
   },
 
   async get_night_load(args, env, ctx) {
-    const r = await nightLoad(db(env), args.night);
+    const r = await nightLoad(db(env), args.night, ctx);
+    if (!r.scheduled && r.closed) return toolResult(`The night of ${r.night} had no requests, so nothing was planned.`, r);
     if (!r.scheduled) return toolResult(`The night of ${r.night} is not planned yet (requests close at ${hhmm(r.requests_close_at)}).`, r);
     const peak = Math.max(0, ...r.load.map((l) => l.kw));
     return toolResult(`Night of ${r.night}: ${r.requests} requests, peak ${peak} kW of the ${r.limit_kw} kW limit (${r.rule_version}).`, r);

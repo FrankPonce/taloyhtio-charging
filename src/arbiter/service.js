@@ -187,11 +187,27 @@ export async function getReceipt(db, { requestId, residentCode }, opts = {}) {
   return { status: "scheduled", night: req.night, receipt_jws: row.jws, receipt: payload };
 }
 
-/** Total kW per slot for a scheduled night: no resident data. */
-export async function nightLoad(db, night) {
+/**
+ * Total kW per slot for a night: no resident data. A closed night that has requests is
+ * scheduled now if nobody asked for a receipt yet; a night without requests never is (so
+ * nobody can make the arbiter fetch prices or write rows for empty nights).
+ *
+ * :param opts: as scheduleIfDue (now, prices, fetchImpl, privateJwk, issuer).
+ * :return: {night, scheduled: true, limit_kw, rule_version, requests, load} or
+ *     {night, scheduled: false, closed, requests, requests_close_at}.
+ */
+export async function nightLoad(db, night, opts = {}) {
   const terms = nightTerms(night);
-  const row = await db.prepare("SELECT load_json, limit_kw, rule_version FROM nights WHERE night = ?").bind(night).first();
-  if (!row) return { night, scheduled: false, requests_close_at: new Date(terms.deadlineMs).toISOString() };
+  const now = opts.now ?? Date.now();
+  const count = async () => (await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE night = ?").bind(night).all()).results[0].n;
+  let row = await db.prepare("SELECT load_json, limit_kw, rule_version FROM nights WHERE night = ?").bind(night).first();
+  if (!row) {
+    const n = await count();
+    const closed = now >= terms.deadlineMs;
+    if (!closed || n === 0) return { night, scheduled: false, closed, requests: closed ? n : null, requests_close_at: new Date(terms.deadlineMs).toISOString() };
+    await scheduleIfDue(db, night, { ...opts, now });
+    row = await db.prepare("SELECT load_json, limit_kw, rule_version FROM nights WHERE night = ?").bind(night).first();
+  }
   const { results } = await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE night = ?").bind(night).all();
   return { night, scheduled: true, limit_kw: row.limit_kw, rule_version: row.rule_version, requests: results[0].n, load: JSON.parse(row.load_json) };
 }
