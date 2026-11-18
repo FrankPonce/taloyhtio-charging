@@ -1,19 +1,24 @@
 {
-  // As Oy Koivurinne (simulated housing company): static site + default-model proxy.
-  // Same Worker code as Charge (../charge/src). Deploy from this folder:
-  //   npx wrangler deploy        Secret (once): npx wrangler secret put SESSION_SECRET
+  // As Oy Koivurinne (simulated housing company): static site + default-model proxy (shared
+  // Worker code in ../charge/src) + the arbiter's MCP server at /mcp (src/index.js).
+  // Deploy from this folder:
+  //   npx wrangler deploy
+  // Secrets (once): npx wrangler secret put SESSION_SECRET
+  //                 npx wrangler secret put RECEIPT_SIGNING_JWK   (the receipt key's private JWK)
   "name": "taloyhtio",
-  "main": "../charge/src/index.js",
+  "main": "src/index.js",
   // Max date supported by the local Wrangler (4.86) is 2026-05-03.
   "compatibility_date": "2026-05-01",
+  // The arbiter uses agent-trust-kit, whose RFC 9421 library needs Node's crypto (M5b admission).
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "../../sites/taloyhtio",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": ["/api/*", "/mcp"],
     "not_found_handling": "404-page"
   },
   "ai": { "binding": "AI" },
-  // Arbiter (M5a): requests, scheduled nights, append-only receipts, admissions. EU (weur).
+  // Arbiter: requests, scheduled nights, append-only receipts, admissions, residents. EU (weur).
   //   npx wrangler d1 migrations apply taloyhtio-arbiter --remote
   "d1_databases": [
     { "binding": "ARBITER_DB", "database_name": "taloyhtio-arbiter", "database_id": "3356ddcb-52b2-40eb-8028-a08cdf99b651", "migrations_dir": "migrations" }
@@ -21,7 +26,8 @@
   "ratelimits": [
     { "name": "SESSION_LIMIT", "namespace_id": "3001", "simple": { "limit": 10, "period": 60 } },
     { "name": "LLM_LIMIT", "namespace_id": "3002", "simple": { "limit": 30, "period": 60 } },
-    { "name": "LLM_IP_LIMIT", "namespace_id": "3003", "simple": { "limit": 60, "period": 60 } }
+    { "name": "LLM_IP_LIMIT", "namespace_id": "3003", "simple": { "limit": 60, "period": 60 } },
+    { "name": "MCP_LIMIT", "namespace_id": "3004", "simple": { "limit": 60, "period": 60 } }
   ],
   "observability": { "enabled": true }
 }
