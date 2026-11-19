@@ -6,7 +6,7 @@
 // assistant reads. The assistant supplies energy and ready-by time only; the browser asks
 // the visitor to confirm before anything is sent.
 
-import { addDays, fromHelsinkiLocal, helsinkiClock } from "./time.js";
+import { addDays, fromHelsinkiLocal, helsinkiClock, longLabel, weekdayLabel } from "./time.js";
 
 const CODE_KEY = "charge.housing.code";
 const SENT_KEY = "charge.housing.requests";
@@ -81,21 +81,46 @@ export class Housing {
   }
 
   /**
-   * Send one night-slot request (final, one per night).
+   * Check a night-slot request without sending it, and work out what would be sent. The
+   * confirmation dialog (site.js) and sendNightRequest use this same check.
    *
-   * :param args: {energyKwh, readyBy: "YYYY-MM-DDTHH:MM" Finnish time, chargerKw (optional)}.
-   * :return: {ok: true, summary, request_id, night, energyKwh, readyBy} or {ok: false, reason}.
+   * :param input: {energyKwh, readyBy: "YYYY-MM-DDTHH:MM" Finnish time, chargerKw (optional)}.
+   * :return: {ok: true, args, night, nightLabel, readyByLabel, energyKwh, chargerKw} or
+   *   {ok: false, reason, field}. args includes the resident code: never show it.
    */
-  async sendNightRequest({ energyKwh, readyBy, chargerKw }) {
+  prepareNightRequest({ energyKwh, readyBy, chargerKw } = {}) {
     if (!this.hasCode()) return { ok: false, reason: "Enter your resident code in the page's Shared chargers box first. Never type it in the chat.", field: "residentCode" };
-    const ms = fromHelsinkiLocal(readyBy);
+    const ms = fromHelsinkiLocal(String(readyBy ?? ""));
     if (ms === null) return { ok: false, reason: "Write the ready-by time as YYYY-MM-DDTHH:MM in Finnish time.", field: "readyBy" };
     const [date, clock] = readyBy.split("T");
     // A night is named by the evening it starts: 22:15-23:59 that evening, 00:00-07:00 the next morning.
     const night = Number(clock.slice(0, 2)) >= 12 ? date : addDays(date, -1);
     const args = { resident_code: this.code(), energy_kwh: Number(energyKwh), ready_by: clock, night };
-    if (chargerKw !== undefined) args.charger_kw = Math.min(Number(chargerKw), MAX_KW);
-    const r = await this.call("submit_charging_request", args);
+    const kw = chargerKw === undefined ? MAX_KW : Math.min(Number(chargerKw), MAX_KW);
+    if (chargerKw !== undefined) args.charger_kw = kw;
+    const nightStart = fromHelsinkiLocal(`${night}T22:15`);
+    return {
+      ok: true,
+      args,
+      night,
+      nightLabel: `${weekdayLabel(nightStart)} → ${weekdayLabel(fromHelsinkiLocal(`${addDays(night, 1)}T07:00`))}`,
+      readyByLabel: longLabel(ms),
+      energyKwh: Number(energyKwh),
+      chargerKw: kw,
+    };
+  }
+
+  /**
+   * Send one night-slot request (final, one per night).
+   *
+   * :param args: {energyKwh, readyBy: "YYYY-MM-DDTHH:MM" Finnish time, chargerKw (optional)}.
+   * :return: {ok: true, summary, request_id, night, energyKwh, readyBy} or {ok: false, reason}.
+   */
+  async sendNightRequest(input) {
+    const prepared = this.prepareNightRequest(input);
+    if (!prepared.ok) return prepared;
+    const { energyKwh, readyBy } = input;
+    const r = await this.call("submit_charging_request", prepared.args);
     if (!r.ok) return r;
     this.remember({ request_id: r.data.request_id, night: r.data.night, energyKwh: Number(energyKwh), readyBy, sentAt: this.now() });
     this.render();
@@ -138,7 +163,7 @@ export class Housing {
       const input = d.getElementById("resident-code");
       const r = this.saveCode(input?.value);
       if (input) input.value = "";
-      this.status(r.ok ? "Saved for this tab. The assistant never sees it." : r.reason);
+      this.status(r.ok ? "Saved for this tab. The assistant never sees it. Next: ask the assistant to send tonight's request, for example “send my request: 30 kWh by 7”." : r.reason);
     });
     d?.getElementById("housing-forget")?.addEventListener("click", () => {
       this.forgetCode();

@@ -10,7 +10,7 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="./">⚡ Charge</a>
+    <a class="brand" href="./"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#24467a"/><path d="M18 4 8 18h7l-2 10 11-15h-7z" fill="#f4b23a"/></svg>Charge</a>
     <nav aria-label="Sections">
       <a href="#plan">Plan</a>
       <a href="#prices">Prices</a>
@@ -19,53 +19,109 @@
     </nav>
   </header>
 
-  <main>
-    <section class="hero">
-      <p class="eyebrow">Finland · 15-minute spot prices</p>
-      <h1>Charge when electricity is cheapest.</h1>
-      <p class="lede">Tell us how much energy your car needs and when it must be ready. We pick the cheapest 15-minute periods before then, using real day-ahead prices.</p>
-      <p class="now">Finnish time now: <span id="now-label">…</span></p>
-      <p class="trust" id="trust">
-        <a href="https://crashtest.frankmp12357.workers.dev/?url=https://charge.frankmp12357.workers.dev/charge_planner" title="Behavioural crash-test results, with a signed attestation you can verify">
-          <img src="https://crashtest.frankmp12357.workers.dev/badges/charge-frankmp12357-workers-dev-charge-planner.svg" alt="crash-test badge: score and model of the latest signed attestation" height="20">
-        </a>
-        <a class="signed" href="charge_planner.signature.json" title="This network is signed with this site's key, published at /.well-known/http-message-signatures-directory">✓ Signed by this site</a>
-      </p>
-    </section>
+  <section class="night" aria-labelledby="night-heading">
+    <div class="night-text">
+      <h1 id="night-heading">Cheapest time to charge tonight <span class="night-echo"><span class="nowrap" id="hero-echo-load"></span> <span class="nowrap" id="hero-echo-ready"></span></span></h1>
+      <div id="hero-plan" class="hero-plan" tabindex="-1" aria-live="polite">
+        <p class="hero-start"><span id="plan-start">…</span> <span class="hero-start-label">plug in and start</span></p>
+        <p class="hero-facts"><span>Done by <b id="plan-finish">…</b></span> <span><b id="plan-cost" class="lit-figure">…</b> energy</span> <span>avg <b id="plan-average">…</b></span></p>
+      </div>
+      <p id="hero-empty" class="hero-empty" hidden>Prices are loading. The plan below works as soon as they arrive.</p>
+    </div>
+    <figure class="skyline-figure">
+      <div id="night-sky" class="skyline"></div>
+      <figcaption class="skyline-caption">Each building is a 15-minute period: lower is cheaper. Lit windows are when to charge. Finnish time now <span id="now-label">…</span>.</figcaption>
+    </figure>
+  </section>
 
+  <main>
     <section id="plan" class="card" aria-labelledby="plan-heading">
       <h2 id="plan-heading">Plan your charging</h2>
       <form id="plan-form" novalidate>
-        <div class="fields">
-          <label>Energy needed <span class="hint">kWh, 1–120</span>
-            <input id="energy" name="energyKwh" type="number" min="1" max="120" step="0.5" value="30" required>
+        <svg class="sprite" aria-hidden="true" focusable="false">
+          <symbol id="body-hatchback" viewBox="0 0 64 26"><path d="M7 19V12Q7 9 10 8L16 4.5Q18 4 21 4H36Q40 4 44 8L49 11 57 12Q60 13 60 16V19"/><path d="M7 19H11M21 19H43M53 19H60"/><circle cx="16" cy="19" r="4.5"/><circle cx="48" cy="19" r="4.5"/></symbol>
+          <symbol id="body-sedan" viewBox="0 0 64 26"><path d="M4 19V13Q4 11 7 11L16 11 22 4H38L45 10 57 11Q60 12 60 15V19"/><path d="M4 19H11M21 19H43M53 19H60"/><circle cx="16" cy="19" r="4.5"/><circle cx="48" cy="19" r="4.5"/></symbol>
+          <symbol id="body-estate" viewBox="0 0 64 26"><path d="M4 19V7Q4 4 7 4L35 4Q39 4 43 8L48 11 57 12Q60 13 60 16V19"/><path d="M4 19H11M21 19H43M53 19H60"/><circle cx="16" cy="19" r="4.5"/><circle cx="48" cy="19" r="4.5"/></symbol>
+          <symbol id="body-suv" viewBox="0 0 64 26"><path d="M4 19V10Q4 8 7 8L14 7 20 2H49Q53 2 55 5L58 8Q60 9 60 11V19"/><path d="M4 19H11M21 19H43M53 19H60"/><circle cx="16" cy="19" r="4.5"/><circle cx="48" cy="19" r="4.5"/></symbol>
+          <symbol id="body-van" viewBox="0 0 64 26"><path d="M4 19V6Q4 2 8 2H50Q54 2 56 5L60 11V19"/><path d="M4 19H11M21 19H43M53 19H60"/><circle cx="16" cy="19" r="4.5"/><circle cx="48" cy="19" r="4.5"/></symbol>
+        </svg>
+
+        <div class="car-row">
+          <label class="car-select">Your car <span class="hint">sets the battery size</span>
+            <select id="car-model"></select>
           </label>
-          <label>Charger power <span class="hint">kW, 1.4–22</span>
-            <input id="charger" name="chargerKw" type="number" min="1.4" max="22" step="0.1" value="11" required>
-          </label>
-          <label>Ready by <span class="hint">Finnish time</span>
-            <input id="ready-by" name="readyBy" type="datetime-local" required>
+          <figure class="car-card" id="car-card">
+            <svg class="car-silhouette" id="car-silhouette" data-body="" viewBox="0 0 64 26" aria-hidden="true"><use id="car-silhouette-use" href="#body-sedan"></use></svg>
+            <figcaption><span id="car-battery-text" aria-live="polite">≈ 60 kWh battery, a typical size</span> <button type="button" class="link-button" id="battery-adjust">Adjust</button></figcaption>
+          </figure>
+          <label class="battery-size" id="battery-size" hidden>Battery size <span class="hint">kWh usable</span>
+            <input id="battery" type="number" min="10" max="200" step="1" value="60" inputmode="decimal">
           </label>
         </div>
+
+        <div class="slider-field" role="group" aria-labelledby="battery-label">
+          <div class="field-head"><span id="battery-label" class="field-title">Battery</span><span class="field-value" id="battery-value">35% → 80%</span></div>
+          <div class="battery-gauge">
+            <div class="battery-shell" aria-hidden="true"><div class="battery-now" id="battery-now-fill"></div><div class="battery-add" id="battery-add-fill"></div></div>
+            <input id="soc-now" class="range range-now" type="range" min="0" max="100" step="1" value="35" aria-label="Battery now, percent">
+            <input id="soc-target" class="range range-target" type="range" min="0" max="100" step="1" value="80" aria-label="Charge to, percent">
+          </div>
+          <div class="field-scale"><span>Now: your dashboard %</span><span>Charge to: 80% is gentle</span></div>
+        </div>
+
+        <div class="slider-field">
+          <div class="field-head"><label for="ready-slider" class="field-title">Ready by</label><span class="field-value" id="ready-value">…</span></div>
+          <div class="ready-strip" id="ready-strip" aria-hidden="true"></div>
+          <input id="ready-slider" class="range range-time" type="range" min="0" max="96" step="1" value="16">
+          <div class="field-scale"><span id="ready-min"></span><span id="ready-max"></span></div>
+          <input id="ready-by" name="readyBy" type="datetime-local" hidden>
+        </div>
+
+        <fieldset class="charger-field">
+          <legend class="field-title">Charger</legend>
+          <div class="charger-tiles" id="charger-tiles">
+            <label class="charger-tile"><input type="radio" name="charger-kind" value="11" checked><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="8" y="3" width="16" height="19" rx="3"/><path d="M12 9h8M13 14l3-3v4l3-3"/><path d="M16 22v3a3 3 0 0 0 3 3h3"/><rect x="22" y="25.5" width="6" height="5" rx="1"/></svg><span>Wall box</span><b>11 kW</b></label>
+            <label class="charger-tile"><input type="radio" name="charger-kind" value="22"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="8" y="3" width="16" height="19" rx="3"/><path d="M11 14l3-3v4l3-3M15 14l3-3v4l3-3"/><path d="M16 22v3a3 3 0 0 0 3 3h3"/><rect x="22" y="25.5" width="6" height="5" rx="1"/></svg><span>Wall box</span><b>22 kW</b></label>
+            <label class="charger-tile"><input type="radio" name="charger-kind" value="3.7"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="11" width="7" height="10" rx="2"/><path d="M5 11V7M8 11V7"/><path d="M6.5 21v3a3 3 0 0 0 3 3h3"/><rect x="12.5" y="22" width="9" height="8" rx="2"/><path d="M21.5 26h3a3 3 0 0 0 3-3V8"/><path d="M15 26h4"/></svg><span>Charging cable</span><b>3.7 kW</b></label>
+            <label class="charger-tile"><input type="radio" name="charger-kind" value="2.3"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12"/><path d="M16 4.5v3M16 24.5v3"/><circle cx="11.5" cy="16" r="1.8"/><circle cx="20.5" cy="16" r="1.8"/></svg><span>Household socket</span><b>2.3 kW</b></label>
+          </div>
+          <button type="button" class="link-button" id="charger-other-toggle">Another power</button>
+          <label id="charger-other" hidden>Charger power <span class="hint">kW, 1.4–22</span>
+            <input id="charger" name="chargerKw" type="number" min="1.4" max="22" step="0.1" value="11" required>
+          </label>
+        </fieldset>
+
+        <p class="energy-line" id="energy-line" aria-live="polite"></p>
+        <details class="energy-exact" id="energy-exact">
+          <summary>Enter the energy yourself</summary>
+          <label>Energy from the grid <span class="hint">kWh, 1–120</span>
+            <input id="energy" name="energyKwh" type="number" min="1" max="120" step="0.5" value="30" required>
+          </label>
+        </details>
         <p id="form-error" class="error" role="alert" hidden></p>
         <button type="submit">Find the cheapest time</button>
       </form>
 
       <div id="plan-result" class="result" tabindex="-1" hidden aria-live="polite">
-        <h3>Your plan</h3>
-        <dl class="stats">
-          <div><dt>Energy cost</dt><dd id="plan-cost"></dd></div>
-          <div><dt>You save vs. charging now</dt><dd id="plan-savings"></dd></div>
-          <div><dt>Average price</dt><dd id="plan-average"></dd></div>
-          <div><dt>Done by</dt><dd id="plan-finish"></dd></div>
-        </dl>
+        <h3>Your plan in detail</h3>
+        <p id="plan-echo" class="plan-echo"></p>
         <h4>Charge during</h4>
         <ul id="plan-windows" class="windows"></ul>
-        <p class="fine">Energy cost only, at spot prices including VAT. Grid transfer fees and your seller's margin are not included.</p>
+        <p class="summary"><span id="plan-flat" hidden>Prices are fairly flat before then. </span>Charging right away would cost <span id="plan-now"></span>, so this timing saves <span id="plan-savings"></span>.</p>
+        <p class="fine">Energy cost only, at spot prices including VAT. Grid transfer fees and your seller's margin are not included. <a href="#prices">See the plan on the price chart</a>.</p>
       </div>
     </section>
 
-    <section id="prices" class="card" aria-labelledby="prices-heading">
+    <section class="trust-row" aria-label="Who vouches for this assistant">
+      <p class="trust" id="trust">
+        <a href="https://crashtest.frankmp12357.workers.dev/?url=https://charge.frankmp12357.workers.dev/charge_planner" title="Behavioural crash-test results, with a signed attestation you can verify">
+          <img src="https://crashtest.frankmp12357.workers.dev/badges/charge-frankmp12357-workers-dev-charge-planner.svg" alt="crash-test badge: score and model of the latest signed attestation" height="20">
+        </a>
+        <a class="signed" href="charge_planner.signature.json" title="This network is signed with this site's key, published at /.well-known/http-message-signatures-directory"><svg class="tick" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Signed by this site</a>
+      </p>
+    </section>
+
+    <section id="prices" class="card card-night" aria-labelledby="prices-heading">
       <h2 id="prices-heading">Spot prices, today and tomorrow</h2>
       <p id="today-summary" class="summary"></p>
       <p id="tomorrow-summary" class="summary"></p>
@@ -81,17 +137,21 @@
       <p id="assistant-status" role="status">Connecting the assistant… If this message stays, the assistant could not load. You can still use the page directly.</p>
       <div id="agent-app">
         <div data-ns-slot="header"></div>
-        <div class="assistant-panels">
-          <div data-ns-slot="chat"></div>
+        <div data-ns-slot="chat"></div>
+        <details class="assistant-inner">
+          <summary>How the assistant works: its agents, the sites it may contact, and a log of each step</summary>
           <div data-ns-slot="agents"></div>
-        </div>
-        <div data-ns-slot="settings"></div>
+        </details>
+        <details class="assistant-inner assistant-settings">
+          <summary>AI model settings: use your own provider instead</summary>
+          <div data-ns-slot="settings"></div>
+        </details>
       </div>
     </section>
 
     <section id="housing" class="card" aria-labelledby="housing-heading">
       <h2 id="housing-heading">Shared chargers at As Oy Koivurinne</h2>
-      <p>Residents of <a href="https://taloyhtio.frankmp12357.workers.dev/">As Oy Koivurinne</a> (a <strong>simulated</strong> housing company) send one night-slot request before 18:00. The housing company plans every car fairly under its 22 kW limit and signs a receipt. Ask the assistant to send yours: your browser asks you to confirm first, and this site's server signs the request.</p>
+      <p>Residents of <a href="https://taloyhtio.frankmp12357.workers.dev/">As Oy Koivurinne</a> (a <strong>simulated</strong> housing company) send one night-slot request before 18:00. Charging runs 22:15–07:00, at most 11 kW per car, and the housing company plans every car fairly under its 22 kW limit and signs a receipt. Ask the assistant to send yours: you see the details and confirm first, this site's server signs it, and a request can't be changed once sent.</p>
       <form id="housing-form" class="housing-form" autocomplete="off">
         <label for="resident-code">Resident code from the board</label>
         <input id="resident-code" name="residentCode" type="password" autocomplete="off" spellcheck="false" placeholder="koivu-…">
@@ -110,7 +170,7 @@
         <li>Finnish electricity is priced per 15 minutes. Tomorrow's prices are published around 14:00.</li>
         <li>We choose the cheapest periods between now and your ready-by time, at your charger's power.</li>
         <li>This page only plans. It does not control your charger or buy electricity.</li>
-        <li>Sharing chargers with neighbours? <a id="housing-link" href="https://taloyhtio.frankmp12357.workers.dev/">As Oy Koivurinne</a>, a simulated housing company, shows how shared chargers can be planned fairly. The assistant can ask its assistant too, after you agree.</li>
+        <li>Sharing chargers with neighbours? <a id="housing-link" href="https://taloyhtio.frankmp12357.workers.dev/">As Oy Koivurinne</a>, a simulated housing company, shows how shared chargers can be planned fairly. This page's assistant can ask the housing company's assistant too, after you agree.</li>
       </ul>
     </section>
   </main>

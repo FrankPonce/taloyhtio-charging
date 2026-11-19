@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "sites/charge/index.html"
+        ],
+        "createdAt": "2026-11-19T00:13:38.142Z",
+        "reason": "assistant verified 19 Nov: .card padding is clamp(18px,3vw,28px); static engine can't resolve clamp(); rendered detector scans at 390x844 and 1440x900 report no cramped-padding"
+      }
+    ]
+  }
+}

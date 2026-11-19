@@ -4,7 +4,8 @@
 import { LIMITS, planCharging, round } from "./planner.js";
 import { PRICE_SOURCE, loadPrices } from "./prices.js";
 import { fromHelsinkiLocal, helsinkiClock, helsinkiDate, longLabel, toHelsinkiLocal, weekdayLabel, addDays } from "./time.js";
-import { renderChart } from "./chart.js";
+import { renderChart, renderSky, renderStrip } from "./chart.js";
+import { CarForm } from "./car-form.js";
 
 const euro = (x) => `€${x.toFixed(2)}`;
 const cents = (x) => `${x.toFixed(2)} c/kWh`;
@@ -139,32 +140,140 @@ export class App {
       result.hidden = !this.plan;
       if (this.plan) {
         const p = formatPlan(this.plan, this.planInput);
-        set("plan-cost", p.cost);
+        set("plan-echo", `${p.energyKwh} kWh at ${p.chargerKw} kW${p.readyBy ? `, ready by ${p.readyBy.label}` : ""} (Finnish time)`);
+        set("plan-now", p.chargeNowCost);
         set("plan-savings", p.savings);
-        set("plan-average", p.averagePrice);
-        set("plan-finish", p.finishesAt.label);
+        const flat = d.getElementById("plan-flat");
+        if (flat) flat.hidden = !(this.plan.savingsEur < 0.5);
         const list = d.getElementById("plan-windows");
         if (list) {
           list.replaceChildren(...p.windows.map((w) => {
             const li = d.createElement("li");
-            li.textContent = `${w.when}: ${w.kwh} kWh at about ${w.averagePrice}`;
+            li.textContent = `${w.when}: ${w.kwh} kWh at ${w.averagePrice}`;
             return li;
           }));
         }
       }
     }
-    const chart = d.getElementById("price-chart");
-    if (chart && this.prices) renderChart(chart, { slots: this.prices.slots, chosen: this.plan?.slots ?? [], nowMs: this.now() });
+    this.drawCharts();
+    this.carForm?.sync();
+  }
+
+  /**
+   * The driver is still filling in the form: preview tonight at the top of the page with
+   * these values. Only until a plan is shown; never the "shown plan" the assistant reads.
+   *
+   * :param draft: {energyKwh, chargerKw, readyBy} as the form holds them now.
+   */
+  /** The ready-by slider's range: {nowMs, minMs, maxMs} in epoch ms. */
+  readyRange() {
+    // The earliest sensible ready-by is an hour from the next quarter-hour; the latest is
+    // the end of the last published price.
+    const nowMs = this.now();
+    const q = 15 * 60_000;
+    const minMs = Math.ceil(nowMs / q) * q + 60 * 60_000;
+    const last = this.prices?.slots?.at(-1)?.end;
+    return { nowMs, minMs, maxMs: Math.max(minMs + q, last ?? nowMs + 24 * 3600_000) };
+  }
+
+  setDraft({ energyKwh, chargerKw, readyBy }) {
+    if (this.plan || !(energyKwh > 0) || !(chargerKw > 0) || !readyBy) return;
+    this.form = { energyKwh, chargerKw, readyBy };
+    if (this.prices) this.drawCharts();
+  }
+
+  /**
+   * Draw the night and the two-day chart only, leaving the form alone (also on resize, as
+   * both are drawn in screen pixels). The chart lights the same periods as the skyline,
+   * the preview included, so the page tells one story.
+   */
+  drawCharts() {
+    const lit = this.renderNight();
+    const chart = this.doc?.getElementById("price-chart");
+    if (chart && this.prices) renderChart(chart, { slots: this.prices.slots, chosen: lit, nowMs: this.now() });
+    const strip = this.doc?.getElementById("ready-strip");
+    if (strip && this.prices) {
+      const r = this.readyRange();
+      const readyMs = fromHelsinkiLocal(this.form.readyBy) ?? r.maxMs;
+      renderStrip(strip, { slots: this.prices.slots, chosen: lit, fromMs: r.minMs, untilMs: r.maxMs, readyMs });
+    }
+  }
+
+  /**
+   * The top of the page: tonight's answer and the night skyline. It shows the plan on the
+   * page, or until the visitor asks for one, a preview for the form's current values. The
+   * preview is never the "shown plan" the assistant reads.
+   *
+   * :return: The lit slots (the shown plan's, or the preview's), for the price chart.
+   */
+  renderNight() {
+    const d = this.doc;
+    const set = (id, text) => { const el = d.getElementById(id); if (el) el.textContent = text; };
+    const nowMs = this.now();
+    let plan = this.plan;
+    let input = this.planInput;
+    if (!plan && this.prices && this.form.readyBy) {
+      const readyByMs = fromHelsinkiLocal(this.form.readyBy);
+      const r = readyByMs === null ? null : planCharging({ energyKwh: this.form.energyKwh, chargerKw: this.form.chargerKw, fromMs: nowMs, readyByMs, prices: this.prices.slots });
+      if (r?.ok) {
+        plan = r.plan;
+        input = { ...this.form, readyByMs };
+      }
+    }
+    const heroPlan = d.getElementById("hero-plan");
+    const empty = d.getElementById("hero-empty");
+    if (heroPlan) heroPlan.hidden = !plan;
+    if (empty) empty.hidden = Boolean(plan);
+    if (plan) {
+      const first = plan.windows[0];
+      const startText = first ? helsinkiClock(first.start) : "Now";
+      const startEl = d.getElementById("plan-start");
+      const changed = startEl && startEl.textContent !== startText && startEl.textContent !== "…";
+      set("plan-start", startText);
+      // A new answer eases in from slightly below; skipped for reduced motion.
+      if (changed && !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        startEl.animate?.([{ opacity: 0.2, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: 450, easing: "cubic-bezier(.16, 1, .3, 1)" });
+      }
+      set("plan-finish", dayClock(plan.finishesAtMs, nowMs));
+      set("plan-cost", euro(plan.costEur));
+      set("plan-average", cents(plan.averagePriceCents));
+      set("hero-echo-load", `${plan.energyKwh} kWh at ${plan.chargerKw} kW,`);
+      set("hero-echo-ready", `ready ${weekdayLabel(input.readyByMs)} ${helsinkiClock(input.readyByMs)}`);
+    } else {
+      set("hero-echo-load", "");
+      set("hero-echo-ready", "");
+    }
+    const sky = d.getElementById("night-sky");
+    if (sky && this.prices) {
+      const untilMs = input?.readyByMs ?? nowMs + 12 * 3600_000;
+      renderSky(sky, { slots: this.prices.slots, chosen: plan?.slots ?? [], nowMs, untilMs });
+    }
+    return plan?.slots ?? [];
   }
 
   clearFormError() {
     const el = this.doc?.getElementById("form-error");
     if (el) { el.textContent = ""; el.hidden = true; }
+    for (const id of Object.values(FIELD_INPUTS)) this.doc?.getElementById(id)?.removeAttribute?.("aria-invalid");
   }
 
-  showFormError(reason) {
+  /**
+   * Show the refusal above the button, mark the field it names and move focus there.
+   *
+   * :param reason: The planner's or page's reason.
+   * :param field: The input it is about (energyKwh, chargerKw, readyBy), if any.
+   */
+  showFormError(reason, field) {
     const el = this.doc?.getElementById("form-error");
     if (el) { el.textContent = reason; el.hidden = false; }
+    const input = FIELD_INPUTS[field] ? this.doc?.getElementById(FIELD_INPUTS[field]) : null;
+    // The energy field sits in a closed "enter it yourself" panel; open it to show it.
+    if (field === "energyKwh") { const exact = this.doc?.getElementById("energy-exact"); if (exact) exact.open = true; }
+    if (input) {
+      input.setAttribute?.("aria-invalid", "true");
+      input.setAttribute?.("aria-describedby", "form-error");
+      input.focus?.();
+    }
   }
 
   /** Wire the page's own form to showPlan. */
@@ -176,13 +285,16 @@ export class App {
       const value = (id) => this.doc.getElementById(id).value;
       const result = this.showPlan({ energyKwh: Number(value("energy")), chargerKw: Number(value("charger")), readyBy: value("ready-by") });
       if (!result.ok) {
-        this.showFormError(result.reason);
+        this.showFormError(result.reason, result.field);
         return;
       }
-      this.doc.getElementById("plan-result")?.focus();
+      this.doc.getElementById("hero-plan")?.focus();
     });
   }
 }
+
+/** The page input for each field name a refusal can give. */
+const FIELD_INPUTS = { energyKwh: "energy", chargerKw: "charger", readyBy: "ready-by" };
 
 // ---- formatting helpers (pure) --------------------------------------------
 
@@ -214,6 +326,15 @@ function hourly(slots, nowMs) {
     byHour.set(h, e);
   }
   return [...byHour.entries()].map(([h, e]) => ({ hour: toHelsinkiLocal(h), price: round(e.sum / e.n, 2) }));
+}
+
+/** "01:45 today", "06:15 tomorrow", or "Sat 21 Nov 06:15" further out, in Finnish time. */
+export function dayClock(ms, nowMs) {
+  const today = helsinkiDate(nowMs);
+  const day = helsinkiDate(ms);
+  if (day === today) return `${helsinkiClock(ms)} today`;
+  if (day === addDays(today, 1)) return `${helsinkiClock(ms)} tomorrow`;
+  return `${weekdayLabel(ms)} ${helsinkiClock(ms)}`;
 }
 
 /** "Wed 18 Nov 00:15–01:00", or with both dates when a window crosses midnight. */
@@ -279,8 +400,23 @@ function defaultReadyBy(nowMs) {
 if (globalThis.document?.getElementById("plan-form")) {
   App.page = new App(globalThis.chargePageHooks || {});
   App.page.bindForm();
+  let lastWidth = globalThis.innerWidth;
+  let queued = false;
+  globalThis.addEventListener?.("resize", () => {
+    if (queued || globalThis.innerWidth === lastWidth) return;
+    queued = true;
+    globalThis.requestAnimationFrame(() => {
+      queued = false;
+      lastWidth = globalThis.innerWidth;
+      if (App.page.prices) App.page.drawCharts();
+    });
+  });
+  // The car form binds after the first render, so its numbers win over the defaults.
   App.page.start().catch((error) => {
     console.error("Price load failed", error);
     App.page.showFormError("Could not load prices. Check your connection and reload the page.");
+  }).finally(() => {
+    App.page.carForm = new CarForm(globalThis.document, (draft) => App.page.setDraft(draft), () => App.page.readyRange());
+    App.page.carForm.bind();
   });
 }

@@ -274,9 +274,16 @@ test("the page's own form gives the same plan as the tool and shows the site's r
   assert.match(error.textContent, /already passed/);
 });
 
-test("site.js and the assistant section are filled in, with no irreversible dialogs", async () => {
+test("site.js and the assistant section are filled in; each irreversible action has a dialog", async () => {
   assert.ok(!AssistantMount.GREETING.includes("TODO"));
-  assert.deepEqual(AssistantMount.DIALOGS, {});
+  const { manifest } = await load();
+  const irreversible = (await registry()).catalog(scope).filter((e) => e.effect === "irreversible").map((e) => e.name);
+  assert.deepEqual(Object.keys(AssistantMount.DIALOGS).sort(), irreversible.sort());
+  for (const words of Object.values(AssistantMount.DIALOGS)) {
+    assert.ok(words.title && words.sentence && words.confirm && words.decline);
+    assert.notEqual(words.confirm, words.decline);
+  }
+  assert.ok(manifest.actions.agentTools.includes("send_night_request"));
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const section = html.match(/<section id="assistant"[\s\S]*?<\/section>/);
   assert.ok(section && !section[0].includes("TODO"));

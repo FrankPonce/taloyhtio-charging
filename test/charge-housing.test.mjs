@@ -110,3 +110,29 @@ test("housing page form: same-origin request, code never stored, receipt for the
   await f.receipt(CODE);
   assert.deepEqual(calls[1].body.params.arguments, { request_id: "req_1", resident_code: CODE });
 });
+
+test("the confirmation dialog names the night and never shows the resident code", async () => {
+  const { AssistantMount } = await import("../sites/charge/site.js");
+  const before = Housing.page;
+  const h = new Housing({ doc: null, fetchImpl: async () => { throw new Error("a review must not send"); }, session: store(), local: store() });
+  Housing.page = h;
+  try {
+    const item = { action: "send_night_request", origin: "https://charge.example", effect: "irreversible", arguments: { energyKwh: 30, readyBy: "2026-12-23T07:00" } };
+    const refused = AssistantMount.dialogContent(item);
+    assert.match(refused.refusal, /Shared chargers box/, "no code saved: no dialog, the site's reason instead");
+    h.saveCode(CODE);
+    const content = AssistantMount.dialogContent(item);
+    assert.equal(content.refusal, undefined);
+    assert.equal(content.title, "Send your night-slot request?");
+    assert.equal(content.confirm, "Send request");
+    assert.match(content.sentence, /final/);
+    assert.match(content.sentence, /simulated/);
+    assert.equal(content.details.Night, "Tue 22 Dec → Wed 23 Dec");
+    assert.equal(content.details.Energy, "30 kWh");
+    assert.match(content.details["Ready by"], /Wed, 23 Dec 2026, 07:00/);
+    assert.equal(content.details["Charging power"], "up to 11 kW");
+    assert.ok(!JSON.stringify(content).includes(CODE), "the code is in no part of the dialog");
+  } finally {
+    Housing.page = before;
+  }
+});

@@ -1,89 +1,251 @@
+/* Charge · Kaamos blue hour.
+   The night is the ground: navy, dusk blue toward its edges, lit-window amber only for
+   charging and the one primary action. Frost panels hold everything people type or read
+   at length. Status is never colour alone: lit periods carry window panes. */
+/* Albert Sans (SIL OFL 1.1, fonts/OFL.txt), self-hosted so no visitor contacts a font CDN.
+   One variable file covers weights 400-800; the Latin subset includes ä, ö, å and €. */
+@font-face {
+  font-family: "Albert Sans";
+  src: url("fonts/albert-sans-latin.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --bg: #f4f6f3;
-  --card: #ffffff;
-  --ink: #14211d;
-  --muted: #55645e;
-  --line: #d9e0dc;
-  --brand: #0f5c4a;
-  --brand-ink: #ffffff;
-  --accent: #1d7a62;
-  --bar: #9fb7ae;
-  --past: #d5dcd8;
-  --chosen: #e0a526;
-  --error: #a3261c;
-  --radius: 14px;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: var(--ink);
-  background: var(--bg);
+  --night: #0e1f3d;
+  --night-2: #16294d;     /* panels that stay on the night (the price chart) */
+  --dusk: #24467a;
+  --amber: #f4b23a;
+  --amber-hi: #ffc861;
+  --frost: #e9eef7;
+  --paper: #ffffff;
+  --ink: #0e1f3d;
+  --muted: #4a5b7a;       /* on frost and white: 5.9:1 and 6.8:1 */
+  --muted-night: #a9b8d6; /* on night: 8.2:1 */
+  --line: #c9d4e8;
+  --line-night: #2b4370;
+  --building: #5f7db3;
+  --error: #9b2c22;
+  --error-night: #ff9b8f;
+  --radius: 16px;
+  font-family: "Albert Sans", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--frost);
+  background: var(--night);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; line-height: 1.5; }
-a { color: var(--brand); }
+a { color: var(--frost); text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.card :focus-visible, dialog :focus-visible { outline-color: var(--ink); }
+::selection { background: var(--amber); color: var(--ink); }
+.nowrap { white-space: nowrap; }
+
+/* ---- header and the night ---------------------------------------------------------- */
 
 .site-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px clamp(16px, 4vw, 48px); background: var(--card); border-bottom: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px;
+  max-width: 1040px; margin: 0 auto; padding: 16px clamp(16px, 4vw, 32px) 4px;
 }
-.brand { font-weight: 800; font-size: 1.15rem; text-decoration: none; color: var(--ink); }
-.site-header nav { display: flex; gap: 18px; }
-.site-header nav a { text-decoration: none; color: var(--muted); font-weight: 600; }
-.site-header nav a:hover { color: var(--brand); }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.2rem; text-decoration: none; color: var(--frost); }
+.brand .mark { width: 28px; height: 28px; }
+.site-header nav { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.site-header nav a { text-decoration: none; color: var(--muted-night); font-weight: 600; }
+.site-header nav a:hover { color: var(--frost); }
 
-main { max-width: 1040px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 32px) 48px; display: grid; gap: 22px; }
+.night { padding: 20px 0 0; }
+.night-text { max-width: 1040px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 32px); }
+.night h1 { margin: 0; font-size: clamp(.95rem, 2.4vw, 1.1rem); font-weight: 600; color: var(--muted-night); text-wrap: balance; }
+.night-echo { display: block; font-weight: 400; }
+.hero-plan:focus { outline: none; }
+.hero-plan:focus-visible { outline: 3px solid var(--amber); outline-offset: 6px; border-radius: 6px; }
+.hero-start {
+  margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+  font-size: clamp(4rem, 16vw, 7rem); font-weight: 800; line-height: .95; letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums; color: var(--frost);
+}
+.hero-start-label { font-size: clamp(1.05rem, 3vw, 1.35rem); font-weight: 600; letter-spacing: 0; color: var(--muted-night); }
+.hero-facts { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 14px 0 0; font-size: clamp(1rem, 2.6vw, 1.15rem); color: var(--muted-night); font-variant-numeric: tabular-nums; }
+.hero-facts b { color: var(--frost); font-weight: 700; }
+.hero-facts .lit-figure { color: var(--amber); }
+.hero-empty { margin: 12px 0 0; color: var(--muted-night); }
 
-.hero { padding: 28px 0 8px; }
-.eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .8rem; color: var(--accent); font-weight: 700; margin: 0; }
-.hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.05; margin: 8px 0 12px; }
-.lede { font-size: 1.12rem; color: var(--muted); max-width: 62ch; margin: 0; }
-.now { color: var(--muted); font-size: .95rem; }
-.trust { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 4px 0 0; font-size: .9rem; }
-.trust img { display: block; }
-.trust .signed { color: var(--brand); font-weight: 600; text-decoration: none; }
-.trust .signed:hover { text-decoration: underline; }
+/* The signature: tonight as a skyline. Height is price, lit windows are charging. */
+.skyline-figure { margin: 22px 0 0; }
+/* Drawn in screen pixels at the container's width (app.js redraws on resize). */
+.skyline { overflow: hidden; }
+.skyline svg { display: block; }
+/* A decorative C crescent and stars that fade toward dusk; frost, never amber. */
+.sky-stars circle { fill: var(--frost); }
+.sky-moon-lit { fill: #f3f6fb; }
+.sky-facade { fill: #4d6aa1; }
+.sky-roof { fill: #8aa3cf; }
+.sky-building.lit .sky-facade { fill: #1d3563; }
+.sky-building.lit .sky-roof, .sky-window { fill: var(--amber); }
+.sky-ticks { position: relative; height: 26px; border-top: 2px solid rgb(233 238 247 / .45); font-variant-numeric: tabular-nums; }
+.sky-tick { position: absolute; top: 5px; font-size: .75rem; color: var(--muted-night); padding-left: 4px; border-left: 1px solid var(--line-night); line-height: 1; }
+.sky-end { position: absolute; top: 5px; left: clamp(16px, 4vw, 32px); font-size: .8rem; font-weight: 700; color: var(--frost); line-height: 1; }
+.sky-end-ready { left: auto; right: clamp(16px, 4vw, 32px); }
+.skyline-caption { max-width: 1040px; margin: 0 auto; padding: 10px clamp(16px, 4vw, 32px) 0; font-size: .9rem; color: var(--muted-night); }
 
-.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(18px, 3vw, 28px); }
-.card h2 { margin-top: 0; }
+/* ---- the working page ---------------------------------------------------------------- */
 
-.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+/* One column that may shrink below its content's width: without minmax(0, …) the price
+   chart's min-width stretches every panel on a phone. */
+main { max-width: 1040px; margin: 0 auto; padding: 26px clamp(12px, 4vw, 32px) 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+
+.card { background: var(--frost); color: var(--ink); border-radius: var(--radius); padding: clamp(18px, 3vw, 28px); }
+.card h2 { margin: 0 0 12px; font-size: clamp(1.25rem, 3vw, 1.5rem); line-height: 1.2; }
+.card h3 { margin: 0 0 6px; font-size: 1.1rem; }
+.card a { color: var(--dusk); }
+.card p, .card li { max-width: 60ch; text-wrap: pretty; }
+/* The price chart stands on the night like the skyline, not in a box of its own. */
+.card-night { background: none; color: var(--frost); border-top: 1px solid var(--line-night); border-radius: 0; padding-left: 0; padding-right: 0; }
+.card-night a { color: var(--frost); }
+
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 14px 16px; }
 label { display: grid; gap: 6px; font-weight: 600; }
 .hint { font-weight: 400; color: var(--muted); font-size: .85rem; }
-input { font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfb; }
-input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid var(--chosen); outline-offset: 2px; }
-button {
-  margin-top: 18px; font: inherit; font-weight: 700; padding: 12px 20px; border: 0; border-radius: 10px;
-  background: var(--brand); color: var(--brand-ink); cursor: pointer;
+input { font: inherit; color: var(--ink); padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+/* Date pickers have a wide intrinsic size; keep them inside their label. */
+.fields input { width: 100%; min-width: 0; font-variant-numeric: tabular-nums; }
+input::placeholder { color: #66748f; }
+input[aria-invalid="true"] { border-color: var(--error); box-shadow: 0 0 0 1px var(--error); }
+.card input, .card select { color-scheme: light; }
+select { font: inherit; color: var(--ink); padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); width: 100%; min-width: 0; }
+
+/* Driver controls: few text boxes. A car list with its silhouette beside it, a battery
+   with two handles, a ready-by slider and charger tiles; all native inputs underneath. */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.car-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 18px; align-items: end; }
+.car-card { margin: 0; display: grid; justify-items: center; gap: 2px; width: clamp(108px, 26vw, 170px); }
+.car-silhouette { width: 100%; height: auto; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.car-silhouette[data-body=""] { stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 1.5 2; }
+.car-card figcaption { text-wrap: balance; display: grid; justify-items: center; gap: 2px; font-size: .85rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.battery-size { grid-column: 1 / -1; max-width: 16rem; }
+/* On a phone the car list gets the full width; the silhouette and battery sit below it. */
+@media (max-width: 520px) {
+  .car-row { grid-template-columns: minmax(0, 1fr); }
+  .car-card { width: auto; grid-template-columns: 96px 1fr; justify-items: start; align-items: center; gap: 12px; }
+  .car-card figcaption { justify-items: start; text-align: left; }
 }
-button:hover { background: var(--accent); }
+.battery-size input { width: 100%; }
+.link-button { background: none; color: var(--dusk); padding: 0; font-weight: 600; font-size: .85rem; text-decoration: underline; text-underline-offset: 3px; }
+.link-button:hover { background: none; color: var(--ink); }
+
+.slider-field { margin-top: 22px; }
+.field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.field-title { font-weight: 700; }
+.field-value { font-weight: 800; font-size: 1.1rem; font-variant-numeric: tabular-nums; text-align: right; }
+.field-scale { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: .8rem; color: var(--muted); }
+
+/* The battery: the part you have is pale, the part being added is amber (that's the
+   charging). The shell is inset by half a handle so fills line up with the handles. */
+/* Handles are 30px wide to grab (a slim 14px bar is drawn inside), so the shell is inset
+   by half a handle and fills line up with the handle centres. The cap touches the shell. */
+.battery-gauge { position: relative; height: 56px; margin-top: 8px; }
+.battery-gauge::after { content: ""; position: absolute; right: 9px; top: 36%; height: 28%; width: 6px; border-radius: 0 3px 3px 0; background: var(--ink); }
+.battery-shell { position: absolute; top: 6px; bottom: 6px; left: 15px; right: 15px; border: 2.5px solid var(--ink); border-radius: 10px; background: var(--paper); overflow: hidden; }
+.battery-now, .battery-add { position: absolute; top: 0; bottom: 0; left: 0; }
+.battery-now { background: #b9c7e0; }
+.battery-add { background: var(--amber); }
+.range { -webkit-appearance: none; appearance: none; background: transparent; margin: 0; width: 100%; border: 0; border-radius: 0; padding: 0; }
+.battery-gauge .range { position: absolute; inset: 0; height: 100%; pointer-events: none; }
+.battery-gauge .range::-webkit-slider-runnable-track { height: 100%; background: transparent; }
+.battery-gauge .range::-moz-range-track { height: 100%; background: transparent; }
+.battery-gauge .range::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 30px; height: 56px; border: 0; border-radius: 0; box-shadow: none; background: linear-gradient(90deg, transparent 8px, var(--paper) 8px, var(--paper) 10px, var(--ink) 10px, var(--ink) 20px, var(--paper) 20px, var(--paper) 22px, transparent 22px); cursor: ew-resize; }
+.battery-gauge .range::-moz-range-thumb { pointer-events: auto; width: 30px; height: 56px; border: 0; border-radius: 0; box-shadow: none; background: linear-gradient(90deg, transparent 8px, var(--paper) 8px, var(--paper) 10px, var(--ink) 10px, var(--ink) 20px, var(--paper) 20px, var(--paper) 22px, transparent 22px); cursor: ew-resize; }
+.range:focus-visible { outline: none; }
+.range:focus-visible::-webkit-slider-thumb { outline: 3px solid var(--ink); outline-offset: 2px; }
+.range:focus-visible::-moz-range-thumb { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+/* Ready by: one slider over the hours that have prices, with those hours drawn above it as
+   a slim strip of the same skyline (inset by half a thumb so it lines up). */
+.ready-strip { height: 30px; margin: 10px 13px 0; }
+.ready-strip svg { display: block; }
+.strip-bar { fill: #9fb0d3; }
+.strip-bar.lit { fill: var(--amber); }
+.strip-bar.after { fill: var(--line); }
+.range-time { height: 36px; margin-top: 6px; cursor: pointer; }
+.range-time::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--line); }
+.range-time::-moz-range-track { height: 6px; border-radius: 3px; background: var(--line); }
+.range-time::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px; border-radius: 50%; background: var(--ink); border: 4px solid var(--paper); box-shadow: 0 2px 6px rgb(9 22 48 / .35); }
+.range-time::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--ink); border: 4px solid var(--paper); box-shadow: 0 2px 6px rgb(9 22 48 / .35); }
+
+/* Charger tiles: drawn icons, the chosen one inked with a check in its corner. */
+.charger-field { border: 0; padding: 0; margin: 22px 0 0; min-width: 0; }
+.charger-field legend { padding: 0; margin-bottom: 8px; }
+.charger-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.charger-tile { position: relative; display: grid; justify-items: center; gap: 2px; padding: 12px 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); font-weight: 600; font-size: .85rem; text-align: center; cursor: pointer; transition: border-color .2s, background-color .2s, transform .2s cubic-bezier(.16, 1, .3, 1); }
+.charger-tile input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.charger-tile svg { width: 32px; height: 32px; fill: none; stroke: var(--dusk); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.charger-tile b { font-size: .95rem; font-variant-numeric: tabular-nums; }
+.charger-tile:hover { border-color: var(--dusk); }
+.charger-tile:has(input:checked) { border-color: var(--ink); background: var(--ink); color: var(--frost); }
+.charger-tile:has(input:checked) svg { stroke: var(--frost); }
+.charger-tile:has(input:checked)::after { content: ""; position: absolute; top: 6px; right: 6px; width: 16px; height: 16px; border-radius: 50%; background: var(--frost) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5 7 11.5 12 5' fill='none' stroke='%230e1f3d' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat; }
+.charger-tile:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
+#charger-other-toggle { margin-top: 10px; }
+#charger-other { margin-top: 10px; max-width: 16rem; }
+#charger-other input { width: 100%; }
+.energy-line { margin: 14px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.energy-exact { margin-top: 8px; }
+.energy-exact summary { cursor: pointer; color: var(--dusk); font-weight: 600; font-size: .9rem; }
+.energy-exact label { margin-top: 10px; max-width: 16rem; }
+.energy-exact input { width: 100%; }
+
+button {
+  font: inherit; font-weight: 700; padding: 12px 20px; border: 0; border-radius: 10px;
+  background: var(--ink); color: var(--paper); cursor: pointer;
+}
+button:hover { background: var(--dusk); }
+/* The one primary action on the page is lit like a window. */
+#plan-form button[type="submit"] { margin-top: 18px; background: var(--amber); color: var(--ink); padding: 14px 24px; font-size: 1.05rem; }
+#plan-form button[type="submit"]:hover { background: var(--amber-hi); }
 .error { color: var(--error); font-weight: 600; margin: 12px 0 0; }
 
 .result { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
-.result h3 { margin: 0 0 12px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 0; }
-.stats div { background: var(--bg); border-radius: 10px; padding: 12px 14px; }
-.stats dt { color: var(--muted); font-size: .85rem; }
-.stats dd { margin: 4px 0 0; font-size: 1.25rem; font-weight: 800; }
-.windows { padding-left: 1.1em; }
+.plan-echo { margin: 0; color: var(--muted); }
+.result h4 { margin: 16px 0 4px; font-size: 1rem; }
+.windows { padding-left: 1.1em; margin: 0 0 8px; font-variant-numeric: tabular-nums; }
 .fine { color: var(--muted); font-size: .85rem; }
-
+.card-night .fine, .card-night .legend { color: var(--muted-night); }
 .summary { margin: 4px 0; }
-.chart { margin-top: 14px; overflow-x: auto; }
-.chart svg { width: 100%; min-width: 640px; height: auto; display: block; }
-.chart .bar { fill: var(--bar); }
-.chart .bar.past { fill: var(--past); }
-.chart .bar.chosen { fill: var(--chosen); }
-.chart .grid { stroke: var(--line); stroke-width: 1; }
-.chart .now { stroke: var(--error); stroke-width: 2; stroke-dasharray: 4 3; }
-.chart .axis { fill: var(--muted); font-size: 12px; }
-.legend { font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--bar); margin-left: 8px; }
-.key.chosen { background: var(--chosen); margin-left: 0; }
-.key.past { background: var(--past); }
 .plain { padding-left: 1.1em; }
+.plain li + li { margin-top: 4px; }
 
-.site-footer { text-align: center; color: var(--muted); font-size: .9rem; padding: 24px 16px 40px; }
-/* Assistant layout. Append to the site's stylesheet and set the colors to the site's palette. */
+/* Who vouches for the assistant: on the night, between the plan and the prices. */
+.trust-row { padding: 0 4px; }
+.trust { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0; font-size: .9rem; }
+.trust img { display: block; }
+.trust .signed { display: inline-flex; align-items: center; gap: 6px; color: var(--frost); font-weight: 600; text-decoration: none; }
+.trust .tick { width: 16px; height: 16px; color: var(--frost); }
+.trust .signed:hover { text-decoration: underline; }
+
+/* Two-day price chart, drawn on the night like the skyline. */
+/* Drawn at the container's width, so labels keep their size on a phone. */
+.chart { margin-top: 14px; overflow: hidden; }
+.chart svg { display: block; }
+.chart .bar { fill: var(--building); }
+.chart .bar.past { fill: var(--line-night); }
+.chart .bar.chosen { fill: var(--amber); }
+.chart .grid { stroke: var(--line-night); stroke-width: 1; }
+.chart .now { stroke: var(--frost); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.chart .axis.day { fill: var(--frost); font-weight: 700; }
+.chart .axis { fill: var(--muted-night); font-size: 12px; }
+.legend { font-size: .85rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--building); margin-left: 8px; }
+.key.chosen { background: var(--amber); margin-left: 0; }
+.key.past { background: var(--line-night); }
+
+.site-footer { max-width: 1040px; margin: 0 auto; color: var(--muted-night); font-size: .9rem; padding: 8px clamp(16px, 4vw, 32px) 40px; }
+
+/* ---- assistant ------------------------------------------------------------------------ */
 .assistant { margin-top: 0; }
+.assistant-note { color: var(--muted); font-size: .9rem; }
 
 /* The runtime reads these variables for its chat, settings and agent panels.
    The chat background below also uses --ns-bg. White text sits on --ns-primary (the
@@ -91,30 +253,43 @@ button:hover { background: var(--accent); }
    (Send while a turn is steered), so give both at least 4.5:1 contrast with white.
    --ns-accent also underlines the chat header. */
 #agent-app {
-  --ns-font: "Inter", system-ui, sans-serif;
-  --ns-bg: #ffffff;
-  --ns-fg: #14211d;
-  --ns-primary: #0f5c4a;
-  --ns-accent: #1d6a55;
-  --ns-border: #d9e0dc;
+  --ns-font: "Albert Sans", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --ns-bg: #e9eef7;
+  --ns-fg: #0e1f3d;
+  --ns-primary: #0e1f3d;
+  --ns-accent: #24467a;
+  --ns-border: #c9d4e8;
   --ns-panelbg: #ffffff;
-  --ns-msgbg: #f4f6f3;
-  --ns-muted: #55645e;
+  --ns-msgbg: #ffffff;
+  --ns-muted: #4a5b7a;
 }
 
-.assistant-panels {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 240px;
-  gap: 16px;
-  margin-top: 16px;
-}
+/* The chat takes the full width; the agent graph and step log are for the curious, so
+   they wait behind a disclosure instead of sitting next to the chat. */
+#agent-app [data-ns-slot="chat"] { margin-top: 16px; }
+.assistant-inner { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.assistant-inner summary { cursor: pointer; color: var(--dusk); font-weight: 600; font-size: .95rem; }
+.assistant-inner[open] summary { margin-bottom: 12px; }
+#agent-app.ns-composed-app .assistant-inner [data-ns-slot="agents"] { height: 420px; }
+/* The site's status line already says whether the assistant connected; the runtime's
+   "awaiting verification" badge reads as unfinished to a visitor. Its real, error and
+   mock badges stay. */
+#agent-app .ns-llmbadge.pending { display: none; }
 
 /* Set the height once the runtime has mounted the chat, so a failed load leaves no
    empty box. */
-#agent-app.ns-composed-app [data-ns-slot="chat"] { height: 620px; }
+#agent-app.ns-composed-app [data-ns-slot="chat"] { height: clamp(320px, 46vh, 420px); }
+#agent-app.ns-composed-app [data-ns-slot="chat"] > .ns-chat { min-height: 0; }
 /* The runtime gives the chat no background of its own. Keep --ns-msgbg different from
    --ns-bg, or bot replies lose their bubble. */
-#agent-app .ns-chat { background: var(--ns-bg); }
+/* The chat sits on the card's own frost, not in a second white card; bubbles are white. */
+#agent-app .ns-chat { background: var(--ns-bg); border: 0; border-radius: 0; }
+/* Developer chrome stays out of a visitor's chat: the trace toggle and the actions
+   inventory. "How the assistant works" below shows the agents; ?dev=1 still opens the log. */
+#agent-app .ns-devtoggle, #agent-app .ns-action-status { display: none; }
+/* The runtime styles the settings drawer we wrap for it; keep it in the page's type. */
+.assistant-settings.ns-settings { font-size: inherit; border-top: 1px solid var(--line); }
+.assistant-settings .ns-settings-body { font-size: .9rem; padding: 6px 0; }
 
 /* Site-wide form rules often stretch the runtime's own controls. Undo them here. */
 #agent-app input[type="checkbox"],
@@ -159,29 +334,52 @@ button:hover { background: var(--accent); }
 /* site.js and the runtime add their confirmation dialogs to <body>, outside #agent-app.
    Site h2 rules reach the heading, and the two buttons touch. A right margin keeps
    wrapped buttons lined up on the left. */
-body > dialog h2 { margin: 0 0 12px; font: 700 1.25em system-ui, sans-serif; }
+body > dialog { color: var(--ink); background: var(--paper); color-scheme: light; }
+body > dialog::backdrop { background: rgb(9 22 48 / .7); }
+body > dialog h2 { margin: 0 0 12px; font: 700 1.25em/1.25 "Albert Sans", "Segoe UI", system-ui, sans-serif; }
 body > dialog button { margin-right: 8px; }
 /* site.js's dialog: the details in two columns, and a plain decline button, so the two
    choices do not look the same. */
-.assistant-review { max-width: 640px; width: 85%; max-height: 85vh; overflow: auto; border: 1px solid #888; border-radius: 12px; padding: 24px; font: 16px system-ui, sans-serif; }
+.assistant-review { max-width: 640px; width: 85%; max-height: 85vh; overflow: auto; border: 0; border-radius: 14px; padding: 24px; font: 16px/1.5 "Albert Sans", "Segoe UI", system-ui, sans-serif; }
 .assistant-review dl { display: grid; grid-template-columns: fit-content(40%) 1fr; gap: 4px 16px; margin: 12px 0; }
-.assistant-review dt { font-weight: 600; }
+.assistant-review dt { font-weight: 600; color: var(--muted); }
 .assistant-review dd { margin: 0; overflow-wrap: anywhere; }
 .assistant-review details { margin: 12px 0; }
 .assistant-review pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .assistant-review .assistant-decline { background: transparent; color: inherit; border: 1px solid currentColor; }
 
 @media (max-width: 760px) {
-  .assistant-panels { grid-template-columns: 1fr; }
   /* On a phone, each detail goes under its label, so an email is not split. */
-  .assistant-review dl { grid-template-columns: 1fr; gap: 0; }
-  .assistant-review dd { margin-bottom: 8px; }
+  .assistant-review { width: calc(100% - 24px); padding: 18px; font-size: 15px; line-height: 1.4; }
+  .assistant-review dl { grid-template-columns: fit-content(42%) 1fr; gap: 2px 12px; font-size: 14px; }
+  .assistant-review dd { margin: 0; }
 }
-
-.assistant-note { color: var(--muted); font-size: .9rem; }
 
 /* Shared chargers box: code field and buttons on one line where there is room. */
 .housing-form { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: end; margin: 12px 0 4px; }
 .housing-form label { flex-basis: 100%; }
 .housing-form input { flex: 1 1 14rem; max-width: 22rem; }
 #housing-receipt { margin-top: 8px; }
+
+/* Section links land below the top edge, not flush against it. */
+[id] { scroll-margin-top: 16px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+
+  /* One orchestrated moment, in this order: on arrival the skyline rises from the ground,
+     building after building, then tonight's charging windows switch on. Later redraws
+     only switch on newly planned periods (chart.js tracks which are new). */
+  .sky-rising .sky-building { transform-box: fill-box; transform-origin: 50% 100%; animation: rise .7s cubic-bezier(.16, 1, .3, 1) both; animation-delay: var(--rise); }
+  .sky-building.switching-on .sky-window, .sky-building.switching-on .sky-roof { animation: lights-on .5s cubic-bezier(.16, 1, .3, 1) both; animation-delay: var(--on); }
+  .sky-rising .sky-moon-lit, .sky-rising .sky-stars { animation: fade-in 1.4s ease-out both; }
+  .sky-stars .twinkle { animation: twinkle var(--tw) ease-in-out infinite alternate; animation-delay: var(--tw-delay); }
+  @keyframes rise { from { transform: scaleY(.2); } to { transform: scaleY(1); } }
+  @keyframes lights-on { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-in { from { opacity: 0; } }
+  @keyframes twinkle { to { opacity: .15; } }
+
+  .site-header nav a { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; transition: background-size .3s cubic-bezier(.16, 1, .3, 1), color .2s; }
+  .site-header nav a:hover { background-size: 100% 1.5px; }
+  .charger-tile:active { transform: scale(.97); }
+}

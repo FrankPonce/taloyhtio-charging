@@ -1,13 +1,16 @@
 // Mounts the assistant inside the existing page. Load it with:
 //   <script type="module" src="site.js"></script>
 // The page needs the mount markup from assistant-section.html.
-// This site has no irreversible actions yet, so reviewDetails() needs no page object.
+// One irreversible action, send_night_request: it gets this page's own dialog, with its
+// details from the housing box's page object (js/housing.js), so no rule is copied here.
 //
 // Default model: when the visitor has saved no key of their own, this page asks its own
 // server (/api/session) for a short-lived session token and uses the site's Workers AI
 // proxy (/api/llm/v1) as the router. The token works only on that proxy, which is
 // rate-limited; no provider key ever reaches the browser. Spec section 4 allows this
 // ("authenticate the browser through its own session"). The runtime is not edited.
+
+import { Housing } from "./js/housing.js";
 
 /**
  * Boots the browser runtime in the page's assistant section.
@@ -27,7 +30,14 @@ export class AssistantMount {
    * what it does, so that "Cancel" never has two meanings. With no irreversible action,
    * leave this empty.
    */
-  static DIALOGS = {};
+  static DIALOGS = {
+    send_night_request: {
+      title: "Send your night-slot request?",
+      sentence: "This is final: one request per night, and it can't be changed afterwards. This site's server signs it; As Oy Koivurinne (a simulated housing company) checks that signature, plans every car fairly at 18:00 and signs a receipt you can check on this page.",
+      confirm: "Send request",
+      decline: "Don't send",
+    },
+  };
 
   /**
    * Boot the runtime and report the result in the status line.
@@ -234,18 +244,24 @@ export class AssistantMount {
    * :return: Details by label, {refusal: reason}, or {} when the action has none.
    */
   static reviewDetails(action, args) {
-    // No irreversible actions yet. Example for later:
-    // if (action === "<irreversible_action>") {
-    //   const check = App.page.checkOrder(args);
-    //   if (!check.ok) {
-    //     return {refusal: check.reason};
-    //   }
-    //   return {
-    //     "Items": check.items,
-    //     "Total": check.total,
-    //     "Name": args.name,
-    //   };
-    // }
+    if (action === "send_night_request") {
+      const check = Housing.page?.prepareNightRequest(args);
+      if (!check) {
+        return { refusal: "The Shared chargers box is not on this page, so nothing was sent." };
+      }
+      if (!check.ok) {
+        return { refusal: check.reason };
+      }
+      // Never the resident code itself: only that one is saved.
+      return {
+        "Night": check.nightLabel,
+        "Energy": `${check.energyKwh} kWh`,
+        "Ready by": `${check.readyByLabel} (Finnish time)`,
+        "Charging power": `up to ${check.chargerKw} kW`,
+        "Resident code": "saved on this page; the assistant never sees it",
+        "Sent to": "As Oy Koivurinne (simulated), through this site's server",
+      };
+    }
     return {};
   }
 
