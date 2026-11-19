@@ -5,60 +5,160 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>As Oy Koivurinne · Shared EV chargers</title>
   <meta name="description" content="Rules for the shared electric-car chargers of As Oy Koivurinne, a (simulated) Finnish housing company: night power limit, slot requests and fair sharing.">
+  <meta name="theme-color" content="#0e1f3d">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/albert-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="./">🏠 As Oy Koivurinne</a>
+    <a class="brand" href="./">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#24467a"/><path d="M16 5c5.5 3.6 8 8.2 7.4 13.2-.5 4.3-3.6 7.3-7.4 7.8-3.8-.5-6.9-3.5-7.4-7.8C8 13.2 10.5 8.6 16 5z" fill="#e9eef7"/><path d="M16 9v19M16 15l-3.6-2.8M16 19l4-3M16 23l-3-2.2" stroke="#24467a" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>
+      As Oy Koivurinne
+    </a>
+    <span class="sim-chip">Simulated<span class="sim-long"> housing company</span></span>
     <nav aria-label="Sections">
+      <a href="#load">Tonight</a>
+      <a href="#request">Request</a>
       <a href="#rules">Rules</a>
-      <a href="#request">Night slots</a>
       <a href="#assistant">Ask</a>
     </nav>
   </header>
 
+  <section class="hero" aria-labelledby="tonight-heading">
+    <figure class="scene-figure">
+      <div id="scene" class="scene"></div>
+    </figure>
+    <div class="hero-text">
+      <h1 id="tonight-heading"><span id="tonight-lead" class="hero-lead">Requests for tonight close in</span> <span id="tonight-figure" class="hero-figure">18:00</span></h1>
+      <p id="tonight-text" class="hero-sentence">Send yours before 18:00. The scheduler then plans every car under the shared limit and signs each resident's receipt.</p>
+      <ol class="runs" aria-label="How the night runs">
+        <li><b>18:00</b><span>Requests close, one per resident. Every car is planned and each receipt signed.</span></li>
+        <li><b>22:00</b><span>Charging starts. Four chargers share 22 kW.</span></li>
+        <li><b>07:00</b><span>Cars ready. Daytime is first come, first served.</span></li>
+      </ol>
+      <p class="hero-actions"><a class="button-frost" href="#request">Request a night slot</a> <a class="text-link" href="#code">No code? Get a demo code</a></p>
+      <p class="hero-note">As Oy Koivurinne is fictional: part of the Trust Before Transaction demo, with no real residents or bills. Night of <span id="tonight-date">tonight</span>.</p>
+    </div>
+  </section>
+
   <main>
-    <section class="hero">
-      <p class="eyebrow">Simulated housing company · demo</p>
-      <h1>Four shared chargers, one fair plan.</h1>
-      <p class="lede">The residents of As Oy Koivurinne share four car chargers. At night they share one power limit, so requests are planned fairly: earliest deadline first, cheapest slots, never over the limit.</p>
-      <p class="fine">As Oy Koivurinne is fictional. It is part of the Trust Before Transaction demo; no real residents or bills are involved.</p>
+    <section id="load" class="load" aria-labelledby="load-heading">
+      <div class="load-head">
+        <h2 id="load-heading">The shared night</h2>
+        <p id="load-summary" class="load-summary">Loading the scheduler's last planned night…</p>
+      </div>
+      <figure class="load-figure">
+        <div id="load-chart" class="load-chart" tabindex="0" aria-describedby="load-summary" aria-label="Load chart: use the arrow keys to read each quarter-hour"></div>
+        <figcaption class="load-caption">All cars together, per quarter-hour, from the scheduler's signed plan. It never shows which car charged when.</figcaption>
+      </figure>
+      <details class="load-table">
+        <summary>Show the numbers</summary>
+        <table>
+          <thead><tr><th scope="col">Quarter-hour</th><th scope="col">kW, all cars</th></tr></thead>
+          <tbody id="load-table-body"></tbody>
+        </table>
+      </details>
     </section>
 
-    <section id="rules" class="card" aria-labelledby="rules-heading">
-      <h2 id="rules-heading">The rules</h2>
-      <ul class="plain">
-        <li id="chargers">4 chargers, 11 kW each, in the shared parking area.</li>
-        <li id="night">22:00–07:00: the chargers share 22 kW.</li>
-        <li id="day">Daytime: first come, first served.</li>
-        <li id="billing">You pay for your own slots only.</li>
-      </ul>
-      <h3>How the night is shared</h3>
-      <ul id="fair-share" class="plain"></ul>
-      <h3>What this site cannot do</h3>
-      <ul id="cannot" class="plain"></ul>
-    </section>
+    <section id="request" class="panel request" aria-labelledby="request-heading">
+      <div class="request-intro">
+        <h2 id="request-heading">Request a night slot</h2>
+        <p id="request-status" class="request-status">Night-slot requests are open: send one before 18:00 for tonight.</p>
+      </div>
 
-    <section id="request" class="card" aria-labelledby="request-heading">
-      <h2 id="request-heading">Request a night slot</h2>
-      <p id="request-status" class="summary">Night-slot requests are open: send one before 18:00 for tonight.</p>
-      <p id="request-how"></p>
-      <form id="request-form" class="request-form" autocomplete="off">
-        <label>Resident code <input name="code" type="password" required minlength="6" autocomplete="off" spellcheck="false"></label>
-        <label>Energy (kWh) <input name="energyKwh" type="number" min="1" max="120" step="0.5" value="30" required></label>
-        <label>Ready by <input name="readyBy" type="time" value="07:00" required></label>
-        <button type="submit">Send tonight's request</button>
-        <button type="button" id="receipt-button">Check my receipt</button>
+      <form id="request-form" class="request-form" autocomplete="off" novalidate>
+        <div class="field">
+          <label for="code">Resident code</label>
+          <input id="code" name="code" type="password" required minlength="6" autocomplete="off" spellcheck="false">
+          <p class="hint">From the board. No code? <button type="button" id="demo-button" class="link-button">Get a demo code</button> (simulated, tonight only).</p>
+          <p id="demo-result" class="form-note" role="status"></p>
+        </div>
+
+        <div class="field">
+          <label for="car">Your car</label>
+          <select id="car" name="car"></select>
+          <p id="car-note" class="hint">≈ 77 kWh usable battery</p>
+          <div id="battery-size-field" class="field-inline" hidden>
+            <label for="battery-size">Battery size, kWh</label>
+            <input id="battery-size" type="number" min="10" max="200" step="1" value="60" inputmode="numeric">
+          </div>
+        </div>
+
+        <fieldset class="field battery">
+          <legend>Battery</legend>
+          <div class="battery-gauge" aria-hidden="true">
+            <span id="battery-held" class="battery-held"></span>
+            <span id="battery-added" class="battery-added"></span>
+            <span class="battery-cap"></span>
+          </div>
+          <div class="sliders">
+            <label class="slider"><span class="slider-label">Now <output id="soc-now-out" for="soc-now">30%</output></span>
+              <input id="soc-now" type="range" min="0" max="95" step="5" value="30"></label>
+            <label class="slider"><span class="slider-label">Charge to <output id="soc-target-out" for="soc-target">80%</output></span>
+              <input id="soc-target" type="range" min="5" max="100" step="5" value="80"></label>
+          </div>
+          <p class="energy"><b id="energy-out">38.5 kWh into the battery</b> <span id="energy-grid" class="hint">≈ 42.5 kWh from the grid, with charging losses</span></p>
+          <input id="energy-kwh" name="energyKwh" type="hidden" value="">
+        </fieldset>
+
+        <fieldset class="field">
+          <legend>Ready by</legend>
+          <div id="ready-choices" class="chips">
+            <label class="chip"><input type="radio" name="readyChoice" value="05:00"><span>05:00</span></label>
+            <label class="chip"><input type="radio" name="readyChoice" value="05:30"><span>05:30</span></label>
+            <label class="chip"><input type="radio" name="readyChoice" value="06:00"><span>06:00</span></label>
+            <label class="chip"><input type="radio" name="readyChoice" value="06:30"><span>06:30</span></label>
+            <label class="chip"><input type="radio" name="readyChoice" value="07:00" checked><span>07:00</span></label>
+            <label class="chip"><input type="radio" name="readyChoice" value="other" id="ready-choice-other"><span>Earlier</span></label>
+          </div>
+          <div id="ready-other-field" class="field-inline" hidden>
+            <label for="ready-other">Ready by (22:15–07:00)</label>
+            <input id="ready-other" type="time" value="04:00" step="900">
+          </div>
+          <input name="readyBy" type="hidden" value="07:00">
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="submit" class="button-primary">Send tonight's request</button>
+          <button type="button" id="receipt-button" class="button-secondary">Check my receipt</button>
+        </div>
+        <p id="request-result" class="form-result" role="status"></p>
+        <div id="receipt-view" class="receipt" hidden>
+          <p class="receipt-title">Your signed plan</p>
+          <div id="receipt-strip" class="receipt-strip" aria-hidden="true"></div>
+          <p class="receipt-axis" aria-hidden="true"><span>22:00</span><span>02:30</span><span>07:00</span></p>
+          <dl class="receipt-facts">
+            <div><dt>Energy</dt><dd id="receipt-energy"></dd></div>
+            <div><dt>Cost</dt><dd id="receipt-cost"></dd></div>
+            <div><dt>Signed by</dt><dd id="receipt-signer"></dd></div>
+          </dl>
+        </div>
       </form>
-      <p id="request-result" class="summary" role="status"></p>
-      <p class="fine">No code from the board? <button type="button" id="demo-button" class="link-button">Get a demo resident code</button> It is simulated, works for tonight only, and also works in <a href="https://charge.frankmp12357.workers.dev/#housing">Charge</a>'s Shared chargers box.</p>
-      <p id="demo-result" class="summary" role="status"></p>
-      <p class="fine">Your request goes only to this site's scheduler, which signs your receipt. The code is not saved in your browser.</p>
-      <p class="fine">Not sure how much to charge? <a href="https://charge.frankmp12357.workers.dev/">Charge</a> plans the cheapest time from spot prices.</p>
+      <p class="fine">Your request goes only to this site's scheduler, which signs your receipt. The code is not saved in your browser. Not sure how much to charge? <a href="https://charge.frankmp12357.workers.dev/">Charge</a> plans the cheapest time from spot prices, and its Shared chargers box sends the same request.</p>
     </section>
 
-    <section id="assistant" class="assistant card" aria-labelledby="assistant-heading">
+    <section id="rules" class="panel rules" aria-labelledby="rules-heading">
+      <h2 id="rules-heading">How the night is shared</h2>
+      <ul id="fair-share" class="fair"></ul>
+      <div class="rules-grid">
+        <div>
+          <h3>The chargers</h3>
+          <dl class="facts">
+            <div><dt>Places</dt><dd id="chargers">4 chargers, 11 kW each, in the shared parking area.</dd></div>
+            <div><dt>Night</dt><dd id="night">22:00–07:00: the chargers share 22 kW.</dd></div>
+            <div><dt>Day</dt><dd id="day">Daytime: first come, first served.</dd></div>
+            <div><dt>Billing</dt><dd id="billing">You pay for your own slots only.</dd></div>
+          </dl>
+        </div>
+        <div>
+          <h3>What this site cannot do</h3>
+          <ul id="cannot" class="cannot"></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="assistant" class="panel assistant" aria-labelledby="assistant-heading">
       <h2 id="assistant-heading">Ask about the chargers</h2>
       <p>Ask in plain words, like “How does the night limit work?” or “What do I need to request a slot?”. The assistant reads this page's rules.</p>
       <p class="assistant-note">By default your messages and this page's data go to Cloudflare Workers AI through this site, with no account needed. You can choose your own AI provider in the settings below instead.</p>
@@ -73,6 +173,23 @@
       </div>
     </section>
   </main>
+
+  <dialog id="request-dialog" class="request-dialog" aria-labelledby="request-dialog-title">
+    <form method="dialog">
+      <h2 id="request-dialog-title">Send your night-slot request?</h2>
+      <p>A request is final: it can't be changed or taken back for that night. Your code goes only to this site's scheduler.</p>
+      <dl>
+        <dt>Night</dt><dd id="dialog-night"></dd>
+        <dt>Energy</dt><dd id="dialog-energy"></dd>
+        <dt>Ready by</dt><dd id="dialog-ready"></dd>
+      </dl>
+      <p class="hint">As Oy Koivurinne is simulated; nothing is billed.</p>
+      <div class="dialog-actions">
+        <button value="send" class="button-primary">Send request</button>
+        <button value="cancel" class="button-plain">Not now</button>
+      </div>
+    </form>
+  </dialog>
 
   <footer class="site-footer">
     <p>Part of <strong>Trust Before Transaction</strong>, an entry to the Open Agentic Web Challenge. <a href="https://github.com/FrankPonce/taloyhtio-charging">Source on GitHub</a>.</p>

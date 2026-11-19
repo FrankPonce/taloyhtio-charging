@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-19T00:57:04.482Z",
+  "generatedAt": "2026-11-19T13:05:03.000Z",
   "title": "Design System: Charge",
   "extensions": {
     "colorMeta": {
@@ -228,6 +228,21 @@
           "#f4bdb6",
           "#faecea"
         ]
+      },
+      "held": {
+        "role": "neutral",
+        "displayName": "Held Blue",
+        "canonical": "#a9bddf",
+        "tonalRamp": [
+          "#1a2333",
+          "#2d3e5a",
+          "#3f5884",
+          "#5574ad",
+          "#7f99c8",
+          "#a9bddf",
+          "#cdd9ed",
+          "#eef2f9"
+        ]
       }
     },
     "typographyMeta": {
@@ -250,6 +265,14 @@
       "label": {
         "displayName": "Label",
         "purpose": "Field labels, hints (400), tile captions, legends and chart axes (12px)."
+      },
+      "display-countdown": {
+        "displayName": "Countdown",
+        "purpose": "Koivurinne hero figure: time left until requests close, one line, max 6rem."
+      },
+      "display-lead": {
+        "displayName": "Countdown Lead",
+        "purpose": "Koivurinne: the words opening the hero h1 before the countdown, muted-night."
       }
     },
     "shadows": [
@@ -262,6 +285,11 @@
         "name": "dialog-backdrop",
         "value": "rgb(9 22 48 / .7)",
         "purpose": "Navy dim behind confirmation dialogs."
+      },
+      {
+        "name": "dialog-backdrop-koivurinne",
+        "value": "rgb(9 22 48 / .72)",
+        "purpose": "Koivurinne request dialog backdrop."
       }
     ],
     "motion": [
@@ -289,6 +317,26 @@
         "name": "state",
         "value": "200ms",
         "purpose": "Tile border and background changes; tile press to scale(.97)."
+      },
+      {
+        "name": "snow-fall",
+        "value": "9-19s linear infinite, per flake",
+        "purpose": "Koivurinne scene: snow falls slowly with a small drift (reduced motion: off)."
+      },
+      {
+        "name": "star-twinkle",
+        "value": "2-5s ease-in-out alternate",
+        "purpose": "Koivurinne scene: every sixth star dims and returns (reduced motion: off)."
+      },
+      {
+        "name": "feed-on",
+        "value": "1400ms cubic-bezier(.16, 1, .3, 1), 300ms delay",
+        "purpose": "Koivurinne scene: the shared feed draws on from the electrical room when a planned night charges (reduced motion: off)."
+      },
+      {
+        "name": "battery-fill",
+        "value": "250ms cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Koivurinne battery gauge: held and added widths ease as the sliders move."
       }
     ],
     "breakpoints": [
@@ -305,6 +353,16 @@
       {
         "name": "container",
         "value": "1040px"
+      },
+      {
+        "name": "koivurinne-one-column",
+        "value": "960px",
+        "purpose": "Koivurinne hero drops to one column, scene first, no fade mask."
+      },
+      {
+        "name": "koivurinne-phone",
+        "value": "720px",
+        "purpose": "Koivurinne: action before timeline, nav on its own row, form and rules one column."
       }
     ]
   },
@@ -362,17 +420,82 @@
       "description": "Signature: price as building height, charging as lit amber window grids, sky gradient mapping clock time.",
       "html": "<div class=\"ds-sky\"><svg viewBox=\"0 0 290 120\" width=\"290\" height=\"120\"><defs><linearGradient id=\"ds-sky-g\" x1=\"0\" x2=\"1\"><stop offset=\"0\" stop-color=\"rgb(58,96,158)\"/><stop offset=\".55\" stop-color=\"rgb(8,19,42)\"/><stop offset=\"1\" stop-color=\"rgb(40,70,120)\"/></linearGradient></defs><rect width=\"290\" height=\"120\" fill=\"url(#ds-sky-g)\"/><circle class=\"st\" cx=\"40\" cy=\"18\" r=\"1\"/><circle class=\"st\" cx=\"120\" cy=\"12\" r=\"1\"/><circle class=\"st\" cx=\"210\" cy=\"22\" r=\"1\"/><rect class=\"f\" x=\"10\" y=\"40\" width=\"30\" height=\"80\"/><rect class=\"f\" x=\"44\" y=\"55\" width=\"30\" height=\"65\"/><rect class=\"fl\" x=\"78\" y=\"80\" width=\"30\" height=\"40\"/><rect class=\"w\" x=\"84\" y=\"86\" width=\"4\" height=\"5\"/><rect class=\"w\" x=\"91\" y=\"86\" width=\"4\" height=\"5\"/><rect class=\"w\" x=\"98\" y=\"86\" width=\"4\" height=\"5\"/><rect class=\"w\" x=\"84\" y=\"94\" width=\"4\" height=\"5\"/><rect class=\"w\" x=\"91\" y=\"94\" width=\"4\" height=\"5\"/><rect class=\"w\" x=\"98\" y=\"94\" width=\"4\" height=\"5\"/><rect class=\"fl\" x=\"112\" y=\"88\" width=\"30\" height=\"32\"/><rect class=\"w\" x=\"118\" y=\"94\" width=\"4\" height=\"5\"/><rect class=\"w\" x=\"125\" y=\"94\" width=\"4\" height=\"5\"/><rect class=\"w\" x=\"132\" y=\"94\" width=\"4\" height=\"5\"/><rect class=\"f\" x=\"146\" y=\"60\" width=\"30\" height=\"60\"/><rect class=\"f\" x=\"180\" y=\"30\" width=\"30\" height=\"90\"/><rect class=\"f\" x=\"214\" y=\"50\" width=\"30\" height=\"70\"/><rect class=\"f\" x=\"248\" y=\"70\" width=\"30\" height=\"50\"/></svg></div>",
       "css": ":host{--night:#0e1f3d;--dusk:#24467a;--amber:#f4b23a;--amber-hi:#ffc861;--frost:#e9eef7;--paper:#ffffff;--ink:#0e1f3d;--muted:#4a5b7a;--muted-night:#a9b8d6;--line:#c9d4e8;--line-night:#2b4370;--building:#5f7db3;--error:#9b2c22;}.ds-sky{background:var(--night);display:inline-block;}.ds-sky svg{display:block;}.ds-sky .st{fill:var(--frost);}.ds-sky .f{fill:#4d6aa1;}.ds-sky .fl{fill:#1d3563;}.ds-sky .w{fill:var(--amber);}"
+    },
+    {
+      "name": "Frost Button",
+      "kind": "button",
+      "refersTo": "button-frost",
+      "description": "Koivurinne: the hero call to action on the night, so the amber action stays in the form.",
+      "html": "<button class=\"ds-btn-frost\">Request a night slot</button>",
+      "css": ".ds-btn-frost { background: #e9eef7; color: #0e1f3d; padding: 13px 22px; border: 0; border-radius: 10px; font: inherit; font-weight: 700; cursor: pointer; transition: background-color .2s, transform .15s cubic-bezier(.16,1,.3,1); } .ds-btn-frost:hover { background: #ffffff; } .ds-btn-frost:active { transform: scale(.97); } .ds-btn-frost:focus-visible { outline: 3px solid #f4b23a; outline-offset: 2px; }"
+    },
+    {
+      "name": "Plain Button",
+      "kind": "button",
+      "refersTo": "button-plain",
+      "description": "Koivurinne: the bordered 'Not now' beside an amber choice in dialogs.",
+      "html": "<button class=\"ds-btn-plain\">Not now</button>",
+      "css": ".ds-btn-plain { background: transparent; color: #0e1f3d; border: 1px solid currentColor; padding: 12px 20px; border-radius: 10px; font: inherit; font-weight: 700; cursor: pointer; transition: background-color .2s; } .ds-btn-plain:hover { background: #e9eef7; } .ds-btn-plain:focus-visible { outline: 3px solid #0e1f3d; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip-status",
+      "description": "Koivurinne header 'Simulated housing company' chip; the only pill shape in the system.",
+      "html": "<span class=\"ds-chip-status\">Simulated housing company</span>",
+      "css": ".ds-chip-status { display: inline-block; font-size: .78rem; font-weight: 600; color: #a9b8d6; border: 1px solid #2b4370; border-radius: 99px; padding: 3px 10px; background: #0e1f3d; }"
+    },
+    {
+      "name": "Time Chips",
+      "kind": "chip",
+      "refersTo": "chip-time",
+      "description": "Koivurinne ready-by radio chips; checked fills ink with a frost dot.",
+      "html": "<div class=\"ds-chips\"><label class=\"ds-chip\"><input type=\"radio\" name=\"ds-r\"><span>06:30</span></label><label class=\"ds-chip\"><input type=\"radio\" name=\"ds-r\" checked><span>07:00</span></label><label class=\"ds-chip\"><input type=\"radio\" name=\"ds-r\"><span>Earlier</span></label></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 8px; } .ds-chip { position: relative; } .ds-chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; } .ds-chip span { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 10px 16px; background: #fff; color: #0e1f3d; border: 1px solid #c9d4e8; border-radius: 10px; font-weight: 700; font-variant-numeric: tabular-nums; transition: background-color .15s, border-color .15s; } .ds-chip:hover span { border-color: #24467a; } .ds-chip input:checked + span { background: #0e1f3d; border-color: #0e1f3d; color: #e9eef7; } .ds-chip input:checked + span::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #e9eef7; } .ds-chip input:focus-visible + span { outline: 3px solid #0e1f3d; outline-offset: 2px; }"
+    },
+    {
+      "name": "Battery Gauge",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Koivurinne: held charge in held blue, added charge in amber with ink pane lines, over two native range sliders.",
+      "html": "<div class=\"ds-batt\"><span class=\"ds-batt-held\"></span><span class=\"ds-batt-added\"></span><span class=\"ds-batt-cap\"></span></div>",
+      "css": ".ds-batt { position: relative; height: 54px; margin: 4px 14px 4px 0; background: #fff; border: 2px solid #0e1f3d; border-radius: 10px; } .ds-batt-held, .ds-batt-added { position: absolute; top: 4px; bottom: 4px; } .ds-batt-held { left: 4px; width: 30%; background: #a9bddf; border-radius: 6px 0 0 6px; } .ds-batt-added { left: calc(4px + 30%); width: 50%; background: #f4b23a repeating-linear-gradient(90deg, transparent 0 22px, rgb(14 31 61 / .22) 22px 24px); } .ds-batt-cap { position: absolute; right: -12px; top: 15px; width: 9px; height: 20px; background: #0e1f3d; border-radius: 0 4px 4px 0; }"
+    },
+    {
+      "name": "Receipt Strip",
+      "kind": "card",
+      "refersTo": "receipt",
+      "description": "Koivurinne signed plan: 36 quarter-hours, own periods full-height amber, others short line-grey.",
+      "html": "<div class=\"ds-receipt\"><p class=\"ds-receipt-title\">Your signed plan</p><div class=\"ds-strip\"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class=\"on\"></i><i class=\"on\"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class=\"ds-axis\"><span>22:00</span><span>02:30</span><span>07:00</span></p></div>",
+      "css": ".ds-receipt { background: #fff; color: #0e1f3d; border: 1px solid #c9d4e8; border-radius: 12px; padding: 18px 20px; } .ds-receipt-title { font-weight: 800; margin: 0 0 12px; } .ds-strip { display: grid; grid-template-columns: repeat(36, 1fr); gap: 2px; align-items: end; height: 30px; } .ds-strip i { height: 40%; background: #c9d4e8; border-radius: 2px; } .ds-strip i.on { height: 100%; background: #f4b23a; } .ds-axis { display: flex; justify-content: space-between; font-size: .8rem; color: #4a5b7a; margin: 4px 0 0; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Rules Rows",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Koivurinne sharing rules as hairline rows: numbered steps, drawn checks for guarantees, a drawn ring-and-bar for 'cannot do'.",
+      "html": "<ol class=\"ds-fair\"><li>The scheduler's first step.</li><li>The scheduler's second step.</li><li>A guarantee.</li></ol><ul class=\"ds-cannot\"><li>Something this site cannot do.</li></ul>",
+      "css": ".ds-fair { list-style: none; margin: 0 0 20px; padding: 0; counter-reset: rule; border-bottom: 1px solid #c9d4e8; color: #0e1f3d; } .ds-fair li { counter-increment: rule; display: grid; grid-template-columns: 2.6rem 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid #c9d4e8; font-size: 1.05rem; font-weight: 600; } .ds-fair li::before { content: counter(rule); font-weight: 800; color: #24467a; font-size: 1.15rem; line-height: 1.35; } .ds-fair li:nth-child(n+3)::before { content: ''; width: 12px; height: 7px; margin: 7px 0 0 3px; border-left: 2.5px solid #24467a; border-bottom: 2.5px solid #24467a; transform: rotate(-45deg); } .ds-cannot { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid #c9d4e8; color: #0e1f3d; } .ds-cannot li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid #c9d4e8; } .ds-cannot li::before { content: ''; width: 14px; height: 14px; margin-top: 4px; border: 2px solid #4a5b7a; border-radius: 50%; background: linear-gradient(135deg, transparent 44%, #4a5b7a 44% 56%, transparent 56%); }"
+    },
+    {
+      "name": "Load Chart",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Koivurinne shared night: stepped amber kW area on the night, kW axis 0/11/22, limit as frost band and line, hour grid in night line.",
+      "html": "<svg class=\"ds-load\" viewBox=\"0 0 360 150\"><rect x=\"36\" y=\"28\" width=\"316\" height=\"10\" fill=\"#e9eef7\" opacity=\".14\"/><line x1=\"36\" x2=\"352\" y1=\"38\" y2=\"38\" stroke=\"#e9eef7\" stroke-width=\"2\"/><line x1=\"36\" x2=\"352\" y1=\"79\" y2=\"79\" stroke=\"#2b4370\"/><line x1=\"115\" x2=\"115\" y1=\"38\" y2=\"120\" stroke=\"#2b4370\" opacity=\".6\"/><line x1=\"194\" x2=\"194\" y1=\"38\" y2=\"120\" stroke=\"#2b4370\" opacity=\".6\"/><line x1=\"273\" x2=\"273\" y1=\"38\" y2=\"120\" stroke=\"#2b4370\" opacity=\".6\"/><path d=\"M36 120 V79 H115 V38 H194 V60 H273 V120 Z\" fill=\"#f4b23a\" opacity=\".9\"/><path d=\"M36 79 H115 V38 H194 V60 H273 V120\" stroke=\"#ffc861\" stroke-width=\"2\" fill=\"none\"/><line x1=\"36\" x2=\"352\" y1=\"120\" y2=\"120\" stroke=\"#a9b8d6\"/><g fill=\"#a9b8d6\" font-size=\"12\" font-weight=\"600\" text-anchor=\"end\"><text x=\"30\" y=\"124\">0</text><text x=\"30\" y=\"83\">11</text><text x=\"30\" y=\"42\">22</text><text x=\"30\" y=\"22\" font-weight=\"700\">kW</text></g><text x=\"352\" y=\"22\" text-anchor=\"end\" fill=\"#e9eef7\" font-size=\"13\" font-weight=\"700\">22 kW limit</text></svg>",
+      "css": ".ds-load { display: block; width: 100%; max-width: 420px; background: #0e1f3d; font-family: 'Albert Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; padding: 8px; }"
     }
   ],
   "narrative": {
     "northStar": "Kaamos Blue Hour",
-    "overview": "The night is the interface. Charge refuses the category's white card with a blue bar chart: the page ground is a navy winter night, and tonight's spot prices stand on it as a skyline of flat building silhouettes, one building per 15-minute period, its height the price. The hours to charge are the buildings with their windows lit. Everything else follows from that picture: amber is light from a window, so it only ever means charging or the one thing to press; frost is the pale panel where people type and read.\n\nDensity is calm and mobile-first, one column up to 1040px. The answer (a huge start time) is readable before anything is touched, and controls are drawn objects (a car silhouette, a two-handle battery, a slider over the price strip, icon tiles) over native inputs rather than rows of text boxes. Surfaces are flat fills; the only gradient in the system is the sky behind the skyline, which maps clock time from dusk blue at the edges of the night to deepest navy around 01:00.",
+    "overview": "The night is the interface. Charge refuses the category's white card with a blue bar chart: the page ground is a navy winter night, and tonight's spot prices stand on it as a skyline of flat building silhouettes, one building per 15-minute period, its height the price. The hours to charge are the buildings with their windows lit. Everything else follows from that picture: amber is light from a window, so it only ever means charging or the one thing to press; frost is the pale panel where people type and read.\n\nDensity is calm and mobile-first, one column up to 1040px. The answer (a huge start time) is readable before anything is touched, and controls are drawn objects (a car silhouette, a two-handle battery, a slider over the price strip, icon tiles) over native inputs rather than rows of text boxes. Surfaces are flat fills; the only gradient in the system is the sky behind the skyline, which maps clock time from dusk blue at the edges of the night to deepest navy around 01:00.\n\nThis Kaamos world is shared. As Oy Koivurinne (sites/taloyhtio), the simulated housing company's charger page, uses the same tokens and rules on the same night and adds its own building, components and rules, recorded in the As Oy Koivurinne section below. Everything above applies to it unless that section says otherwise.",
     "keyCharacteristics": [
       "Navy night ground with frost panels laid on it; charts stand directly on the night.",
       "Amber reserved for charging and the single primary action.",
       "State shown by form as well as hue: lit buildings carry window grids, the chosen tile carries a check corner.",
       "One self-hosted variable sans (Albert Sans 400-800), tabular figures for every number.",
-      "Flat, unshadowed surfaces; one orchestrated motion sequence, off under reduced motion."
+      "Flat, unshadowed surfaces; one orchestrated motion sequence, off under reduced motion.",
+      "Shared by As Oy Koivurinne, which draws its own building on the same night and lights only the shared feed in amber."
     ],
     "rules": [
       {
@@ -394,6 +517,26 @@
         "name": "The No Glow Rule",
         "body": "Lit windows are flat amber fills. No glows, blooms or gradients on buildings, bars or buttons.",
         "section": "elevation"
+      },
+      {
+        "name": "The Shared Feed Rule",
+        "body": "In the scene, amber lights only the building's shared 22 kW feed and its \"22 kW\" label, and only while a planned night is charging. Posts, cables and cars never turn amber: plugged in is not charging, the scheduler publishes only the total load, and the scene must never show which car charges when.",
+        "section": "colors"
+      },
+      {
+        "name": "The Cool Homes Rule",
+        "body": "Home windows, stairwells and lamps are cool frost-blue light, never amber. Amber in this world means charging, and homes are not charging.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Pill Rule",
+        "body": "The header's \"Simulated housing company\" chip is the only pill (99px). Every other chip and control keeps the 10px control radius.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Drawn Marks Rule",
+        "body": "Every mark is drawn: rule numbers are type, and checks, the \"cannot\" ring, chevrons and trust icons are CSS borders or SVG strokes. No glyph or icon-font characters.",
+        "section": "components"
       }
     ],
     "dos": [
@@ -402,14 +545,19 @@
       "Do use frost panels for forms, explanations and the assistant; let charts stand on the night.",
       "Do use tabular figures for every number and draw charts at the container's pixel width.",
       "Do keep all motion inside prefers-reduced-motion: no-preference, as one sequence.",
-      "Do theme the vendored runtime only through --ns-* variables and scoped overrides in the site stylesheet."
+      "Do theme the vendored runtime only through --ns-* variables and scoped overrides in the site stylesheet.",
+      "Do say tonight's state in the hero heading itself: \"Requests for tonight close in\" and the countdown, no kicker or eyebrow above it.",
+      "Do show the night only as the building's total load against its limit, in the scene and in the chart.",
+      "Do keep the confirm in the site's own dialog, with the amber action and a plain \"Not now\"."
     ],
     "donts": [
       "Don't use amber for anything that is not charging, its cost, or the one primary action; stars and the moon stay frost.",
       "Don't add glows, drop shadows or gradients to buildings, bars, panels or buttons; the sky is the only gradient.",
       "Don't put a second primary (amber) button on the page.",
       "Don't set long reading text directly on the night; move it into a frost panel.",
-      "Don't edit files under the vendored runtime to restyle it."
+      "Don't edit files under the vendored runtime to restyle it.",
+      "Don't light posts, cables, cars or home windows amber.",
+      "Don't add a second pill shape; the status chip is the only one."
     ]
   }
 }

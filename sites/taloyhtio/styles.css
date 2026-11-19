@@ -1,184 +1,360 @@
+/* As Oy Koivurinne · the same Kaamos night as Charge, its own building.
+   Navy night ground; an illustrated block and car park on it. Amber is charging only (the
+   building's shared feed in the scene, and the night's load) plus the one primary action.
+   Frost panels hold everything people type or read at length. SIMULATED company. */
+/* Albert Sans (SIL OFL 1.1, fonts/OFL.txt), self-hosted so no visitor contacts a font CDN. */
+@font-face {
+  font-family: "Albert Sans";
+  src: url("fonts/albert-sans-latin.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --bg: #f4f2ed;
-  --card: #ffffff;
-  --ink: #1b2430;
-  --muted: #5a6472;
-  --line: #dcd8cf;
-  --brand: #2f4a6b;
-  --brand-ink: #ffffff;
-  --accent: #3d6290;
-  --bar: #9fb7ae;
-  --past: #d5dcd8;
-  --chosen: #e0a526;
-  --error: #a3261c;
-  --radius: 14px;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: var(--ink);
-  background: var(--bg);
+  --night: #0e1f3d;
+  --night-2: #16294d;
+  --dusk: #24467a;
+  --amber: #f4b23a;
+  --amber-hi: #ffc861;
+  --frost: #e9eef7;
+  --paper: #ffffff;
+  --ink: #0e1f3d;
+  --muted: #4a5b7a;
+  --muted-night: #a9b8d6;
+  --line: #c9d4e8;
+  --line-night: #2b4370;
+  --building: #5f7db3;
+  --held: #a9bddf;
+  --error: #9b2c22;
+  --error-night: #ff9b8f;
+  --radius: 16px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  font-family: "Albert Sans", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: var(--frost);
+  background: var(--night);
+  color-scheme: dark;
+  accent-color: var(--ink);
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; line-height: 1.5; }
-a { color: var(--brand); }
+::selection { background: var(--amber); color: var(--ink); }
+a { color: var(--frost); text-underline-offset: .18em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; border-radius: 4px; }
+.panel :focus-visible, dialog :focus-visible { outline-color: var(--ink); }
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+html { scrollbar-color: var(--line-night) var(--night); }
+[id] { scroll-margin-top: 16px; }
 
+/* ---- header ---------------------------------------------------------------------- */
 .site-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px clamp(16px, 4vw, 48px); background: var(--card); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap;
+  padding: 14px var(--gutter); border-bottom: 1px solid var(--line-night);
 }
-.brand { font-weight: 800; font-size: 1.15rem; text-decoration: none; color: var(--ink); }
-.site-header nav { display: flex; gap: 18px; }
-.site-header nav a { text-decoration: none; color: var(--muted); font-weight: 600; }
-.site-header nav a:hover { color: var(--brand); }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.12rem; letter-spacing: -.01em; text-decoration: none; color: var(--frost); }
+.mark { width: 30px; height: 30px; flex: none; }
+.sim-chip { font-size: .78rem; font-weight: 600; color: var(--muted-night); border: 1px solid var(--line-night); border-radius: 99px; padding: 3px 10px; }
+.site-header nav { margin-left: auto; display: flex; gap: 22px; }
+.site-header nav a { color: var(--muted-night); font-weight: 600; text-decoration: none; padding: 4px 0; }
+.site-header nav a:hover { color: var(--frost); }
 
-main { max-width: 1040px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 32px) 48px; display: grid; gap: 22px; }
-
-.hero { padding: 28px 0 8px; }
-.eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .8rem; color: var(--accent); font-weight: 700; margin: 0; }
-.hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.05; margin: 8px 0 12px; }
-.lede { font-size: 1.12rem; color: var(--muted); max-width: 62ch; margin: 0; }
-.now { color: var(--muted); font-size: .95rem; }
-
-.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(18px, 3vw, 28px); }
-.card h2 { margin-top: 0; }
-
-.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
-label { display: grid; gap: 6px; font-weight: 600; }
-.hint { font-weight: 400; color: var(--muted); font-size: .85rem; }
-input { font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfb; }
-input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid var(--chosen); outline-offset: 2px; }
-button {
-  margin-top: 18px; font: inherit; font-weight: 700; padding: 12px 20px; border: 0; border-radius: 10px;
-  background: var(--brand); color: var(--brand-ink); cursor: pointer;
+/* ---- hero: the scene and tonight -------------------------------------------------- */
+.hero {
+  /* The same sky as the scene's, so where the scene fades out the night carries on. */
+  background: linear-gradient(to bottom, #071430, #14305e 55%, #183766 80%, #0e1f3d);
+  display: grid; grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr);
+  align-items: center; min-height: min(80vh, 760px);
+  border-bottom: 1px solid var(--line-night);
 }
-button:hover { background: var(--accent); }
-.error { color: var(--error); font-weight: 600; margin: 12px 0 0; }
+.scene-figure { margin: 0; height: 100%; min-height: 520px; position: relative; overflow: hidden;
+  /* The sky fades into the page's night, so the hero reads as one night, not two boxes. */
+  -webkit-mask-image: linear-gradient(to right, #000 92%, transparent); mask-image: linear-gradient(to right, #000 92%, transparent); }
+.scene { position: absolute; inset: 0; }
+.k-scene { display: block; width: 100%; height: 100%; }
+.hero-text { padding: 40px var(--gutter) 44px clamp(8px, 2vw, 24px); max-width: 600px; display: flex; flex-direction: column; }
+.hero h1 { margin: 0; font-weight: 800; }
+.hero-lead { display: block; font-size: clamp(1.15rem, 1.8vw, 1.4rem); font-weight: 600; color: var(--muted-night); letter-spacing: 0; line-height: 1.3; }
+.hero-figure { display: block; white-space: nowrap; font-size: clamp(3rem, 5.6vw, 6rem); line-height: .95; letter-spacing: -.04em; margin-top: 8px; color: var(--frost); }
+.hero-sentence { font-size: 1.1rem; color: var(--muted-night); margin: 18px 0 0; max-width: 34em; }
+.runs { list-style: none; margin: 26px 0 0; padding: 0; border-top: 1px solid var(--line-night); }
+.runs li { display: grid; grid-template-columns: 4.2rem 1fr; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line-night); font-size: .98rem; }
+.runs b { font-weight: 800; }
+.runs span { color: var(--muted-night); }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; margin: 28px 0 0; }
+.hero-note { margin: 22px 0 0; font-size: .85rem; color: var(--muted-night); }
 
-.result { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
-.result h3 { margin: 0 0 12px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 0; }
-.stats div { background: var(--bg); border-radius: 10px; padding: 12px 14px; }
-.stats dt { color: var(--muted); font-size: .85rem; }
-.stats dd { margin: 4px 0 0; font-size: 1.25rem; font-weight: 800; }
-.windows { padding-left: 1.1em; }
-.fine { color: var(--muted); font-size: .85rem; }
+/* The scene's one state: the shared feed turns amber while a planned night charges. */
+.k-sign { fill: var(--frost); font: 700 12px "Albert Sans", system-ui, sans-serif; }
+.k-bay { fill: #c9d4e8; font: 700 13px "Albert Sans", system-ui, sans-serif; }
+.k-feed-label { fill: var(--frost); font: 700 12px "Albert Sans", system-ui, sans-serif; }
+.k-feed { stroke: #8fa5cc; }
+.k-cable { stroke: #b8c8e3; }
+.k-post-idle { fill: var(--frost); }
+/* Charging: only the shared feed lights. Which car draws power when stays the scheduler's. */
+.is-charging .k-feed { stroke: var(--amber); }
+.is-charging .k-feed-label { fill: var(--amber); }
 
-.summary { margin: 4px 0; }
-.chart { margin-top: 14px; overflow-x: auto; }
-.chart svg { width: 100%; min-width: 640px; height: auto; display: block; }
-.chart .bar { fill: var(--bar); }
-.chart .bar.past { fill: var(--past); }
-.chart .bar.chosen { fill: var(--chosen); }
-.chart .grid { stroke: var(--line); stroke-width: 1; }
-.chart .now { stroke: var(--error); stroke-width: 2; stroke-dasharray: 4 3; }
-.chart .axis { fill: var(--muted); font-size: 12px; }
-.legend { font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--bar); margin-left: 8px; }
-.key.chosen { background: var(--chosen); margin-left: 0; }
-.key.past { background: var(--past); }
-.plain { padding-left: 1.1em; }
+/* ---- buttons and links ------------------------------------------------------------ */
+button { font: inherit; cursor: pointer; }
+.button-primary, .button-secondary, .button-frost, .button-plain {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: inherit; font-weight: 700; border-radius: 10px; border: 0; text-decoration: none; line-height: 1.2;
+  transition: background-color .2s, transform .15s var(--ease);
+}
+.button-primary { background: var(--amber); color: var(--ink); padding: 14px 24px; font-size: 1.05rem; }
+.button-primary:hover { background: var(--amber-hi); }
+.button-secondary { background: var(--ink); color: var(--paper); padding: 13px 20px; }
+.button-secondary:hover { background: var(--dusk); }
+.button-frost { background: var(--frost); color: var(--ink); padding: 13px 22px; }
+.button-frost:hover { background: var(--paper); }
+.button-plain { background: transparent; color: var(--ink); border: 1px solid currentColor; padding: 12px 20px; }
+.button-plain:hover { background: var(--frost); }
+.text-link { color: var(--frost); font-weight: 600; }
+.link-button { background: none; border: 0; padding: 0; color: var(--dusk); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: .18em; }
+.link-button:hover { color: var(--ink); }
 
-.site-footer { text-align: center; color: var(--muted); font-size: .9rem; padding: 24px 16px 40px; }
-/* Assistant layout. Append to the site's stylesheet and set the colors to the site's palette. */
-.assistant { margin-top: 0; }
+/* ---- page column ------------------------------------------------------------------ */
+main { max-width: 1040px; margin: 0 auto; padding: 56px var(--gutter) 64px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 56px; }
+h2 { font-size: clamp(1.4rem, 3vw, 1.75rem); line-height: 1.2; margin: 0 0 8px; letter-spacing: -.01em; }
+h3 { font-size: 1.1rem; margin: 0 0 12px; }
 
-/* The runtime reads these variables for its chat, settings and agent panels.
-   The chat background below also uses --ns-bg. White text sits on --ns-primary (the
-   visitor's messages, Send, and the chat form and settings buttons) and on --ns-accent
-   (Send while a turn is steered), so give both at least 4.5:1 contrast with white.
-   --ns-accent also underlines the chat header. */
+/* ---- the shared night (chart on the night) ----------------------------------------- */
+.load-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 8px 40px; align-items: end; margin-bottom: 22px; }
+.load-head h2 { margin: 0; }
+.load-summary { margin: 0; color: var(--muted-night); font-size: 1.02rem; }
+.load-figure { margin: 0; }
+.load-chart { position: relative; min-height: 220px; border-radius: 6px; }
+.load-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.load-chart:focus-visible { outline-offset: 6px; }
+.lc-grid { stroke: var(--line-night); stroke-width: 1; }
+.lc-limit { stroke: var(--frost); stroke-width: 2; }
+.lc-band { fill: var(--frost); opacity: .14; }
+.lc-vgrid { stroke: var(--line-night); stroke-width: 1; opacity: .6; }
+.lc-limit-label { fill: var(--frost); font: 700 13px "Albert Sans", system-ui, sans-serif; }
+.lc-axis { fill: var(--muted-night); font: 600 12px "Albert Sans", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.lc-unit { font-weight: 700; }
+.lc-tick { stroke: var(--line-night); }
+.lc-base { stroke: var(--muted-night); stroke-width: 1; }
+.lc-area { fill: var(--amber); opacity: .9; }
+.lc-top { stroke: var(--amber-hi); stroke-width: 2; fill: none; }
+.lc-cursor-line { stroke: var(--frost); stroke-width: 1; }
+.lc-tip {
+  position: absolute; top: -6px; transform: translate(-50%, -100%); margin: 0; white-space: nowrap;
+  background: var(--frost); color: var(--ink); font-size: .85rem; font-weight: 700; padding: 5px 10px; border-radius: 8px;
+  pointer-events: none;
+}
+.load-caption { margin-top: 12px; font-size: .88rem; color: var(--muted-night); }
+.load-table { margin-top: 12px; font-size: .92rem; }
+.load-table summary { cursor: pointer; color: var(--frost); font-weight: 600; width: max-content; list-style: none; display: inline-flex; align-items: center; gap: 8px; }
+.load-table summary::-webkit-details-marker { display: none; }
+.load-table summary::before { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .2s var(--ease); }
+.load-table[open] summary::before { transform: rotate(45deg); }
+.load-table table { margin-top: 10px; border-collapse: collapse; min-width: 260px; }
+.load-table th, .load-table td { text-align: left; padding: 4px 18px 4px 0; border-bottom: 1px solid var(--line-night); }
+.load-table th { color: var(--muted-night); font-weight: 600; }
+
+/* ---- frost panels ----------------------------------------------------------------- */
+.panel { background: var(--frost); color: var(--ink); border-radius: var(--radius); padding: clamp(20px, 3.4vw, 36px); color-scheme: light; }
+.panel a { color: var(--dusk); }
+.panel p { max-width: 68ch; }
+.fine { font-size: .88rem; color: var(--muted); margin: 22px 0 0; }
+.hint { font-size: .86rem; color: var(--muted); margin: 6px 0 0; }
+
+/* ---- request form ----------------------------------------------------------------- */
+.request-intro { margin-bottom: 26px; }
+.request-status { margin: 6px 0 0; color: var(--muted); }
+.request-how { color: var(--muted); margin: 8px 0 0; font-size: .95rem; }
+.request-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 28px; }
+.request-form .battery, .request-form .field:has(#ready-choices), .form-actions, .form-result, .form-error, .receipt { grid-column: 1 / -1; }
+.field { margin: 0; padding: 0; border: 0; min-width: 0; }
+.field > label, .field legend, .field-inline label { display: block; font-weight: 700; font-size: .95rem; margin-bottom: 8px; padding: 0; }
+.field-inline { margin-top: 12px; }
+input[type="password"], input[type="number"], input[type="time"], select {
+  width: 100%; font: inherit; font-weight: 600; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; min-height: 46px;
+}
+select { appearance: none; padding-right: 38px; background: var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1.5l6 6 6-6' fill='none' stroke='%2324467a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 14px center; }
+input:hover, select:hover { border-color: var(--building); }
+input[type="password"] { letter-spacing: .12em; }
+
+.battery-gauge { position: relative; height: 54px; margin: 4px 14px 18px 0; background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; overflow: visible; }
+.battery-held, .battery-added { position: absolute; top: 4px; bottom: 4px; left: 4px; transition: width .25s var(--ease), left .25s var(--ease); }
+.battery-held { background: var(--held); border-radius: 6px 0 0 6px; width: 30%; max-width: calc(100% - 8px); }
+.battery-added {
+  background: var(--amber) repeating-linear-gradient(90deg, transparent 0 22px, rgb(14 31 61 / .22) 22px 24px);
+  width: 50%;
+}
+.battery-cap { position: absolute; right: -12px; top: 15px; width: 9px; height: 20px; background: var(--ink); border-radius: 0 4px 4px 0; }
+.sliders { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 28px; }
+.slider { display: grid; gap: 6px; font-weight: 600; font-size: .95rem; }
+.slider-label { display: flex; justify-content: space-between; align-items: baseline; }
+.slider output { font-size: 1.35rem; font-weight: 800; }
+input[type="range"] { width: 100%; height: 30px; margin: 0; background: transparent; appearance: none; }
+input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--line); }
+input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--line); }
+input[type="range"]::-webkit-slider-thumb { appearance: none; width: 24px; height: 24px; margin-top: -9px; border-radius: 50%; background: var(--ink); border: 3px solid var(--paper); box-shadow: 0 2px 6px rgb(9 22 48 / .35); }
+input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--ink); border: 3px solid var(--paper); box-shadow: 0 2px 6px rgb(9 22 48 / .35); }
+.energy { margin: 16px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.energy b { font-size: 1.2rem; font-weight: 800; }
+.energy .hint { margin: 0; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.chip span {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 10px 16px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px; font-weight: 700;
+  transition: background-color .15s, border-color .15s;
+}
+.chip:hover span { border-color: var(--dusk); }
+.chip input:checked + span { background: var(--ink); border-color: var(--ink); color: var(--frost); }
+.chip input:checked + span::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--frost); }
+.chip input:focus-visible + span { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+.form-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-top: 6px; border-top: 1px solid var(--line); padding-top: 24px; }
+.form-result { margin: 0; font-weight: 600; min-height: 1.5em; }
+.form-error { margin: 0; font-weight: 700; color: var(--error); }
+.form-error::before { content: "Problem: "; }
+.form-note { margin: 6px 0 0; font-size: .86rem; color: var(--ink); font-weight: 600; }
+.form-note:empty, .form-result:empty { display: none; }
+
+.receipt { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+.receipt-title { font-weight: 800; margin: 0 0 12px; }
+.receipt-strip { display: grid; grid-template-columns: repeat(36, 1fr); gap: 2px; align-items: end; height: 30px; }
+.rs-cell { height: 40%; background: var(--line); border-radius: 2px; }
+.rs-cell.is-mine { height: 100%; background: var(--amber); }
+.receipt-axis { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin: 4px 0 12px; }
+.receipt-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 20px; margin: 0; }
+.receipt-facts dt { font-size: .82rem; color: var(--muted); font-weight: 600; }
+.receipt-facts dd { margin: 2px 0 0; font-weight: 700; overflow-wrap: anywhere; }
+
+/* ---- rules ------------------------------------------------------------------------ */
+/* The sharing rules as hairline rows: the scheduler's two steps are numbered in the order it
+   applies them; the two guarantees after them carry a drawn check instead. */
+.fair { list-style: none; margin: 18px 0 34px; padding: 0; counter-reset: rule; border-bottom: 1px solid var(--line); }
+.fair li { counter-increment: rule; display: grid; grid-template-columns: 2.6rem 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); font-size: 1.05rem; font-weight: 600; }
+.fair li::before { content: counter(rule); font-weight: 800; color: var(--dusk); font-size: 1.15rem; line-height: 1.35; }
+.fair li:nth-child(n+3)::before { content: ""; width: 12px; height: 7px; margin: 7px 0 0 3px; border-left: 2.5px solid var(--dusk); border-bottom: 2.5px solid var(--dusk); transform: rotate(-45deg); }
+.rules-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px 40px; }
+.facts { margin: 0; display: grid; gap: 12px; }
+.facts div { display: grid; grid-template-columns: 5rem 1fr; gap: 12px; }
+.facts dt { color: var(--muted); font-weight: 600; }
+.facts dd { margin: 0; }
+.cannot { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--line); }
+.cannot li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+/* A drawn "not" mark: a ring with a bar. */
+.cannot li::before { content: ""; width: 14px; height: 14px; margin-top: 4px; border: 2px solid var(--muted); border-radius: 50%; background: linear-gradient(135deg, transparent 44%, var(--muted) 44% 56%, transparent 56%); }
+
+/* ---- dialog ----------------------------------------------------------------------- */
+.request-dialog { max-width: 520px; width: calc(100% - 32px); border: 0; border-radius: 14px; padding: 26px; color: var(--ink); background: var(--paper); color-scheme: light; }
+.request-dialog::backdrop { background: rgb(9 22 48 / .72); }
+.request-dialog h2 { font-size: 1.3rem; margin: 0 0 10px; }
+.request-dialog dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 16px 0; }
+.request-dialog dt { color: var(--muted); font-weight: 600; }
+.request-dialog dd { margin: 0; font-weight: 700; }
+.dialog-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+/* ---- assistant -------------------------------------------------------------------- */
+.assistant-note { color: var(--muted); font-size: .9rem; }
+#assistant-status { font-weight: 600; }
+/* The runtime reads these variables for its chat, settings and agent panels. White text
+   sits on --ns-primary and --ns-accent, so both keep at least 4.5:1 with white. */
 #agent-app {
-  --ns-font: "Inter", system-ui, sans-serif;
-  --ns-bg: #ffffff;
-  --ns-fg: #1b2430;
-  --ns-primary: #2f4a6b;
-  --ns-accent: #2a4562;
-  --ns-border: #dcd8cf;
+  --ns-font: "Albert Sans", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --ns-bg: #e9eef7;
+  --ns-fg: #0e1f3d;
+  --ns-primary: #0e1f3d;
+  --ns-accent: #24467a;
+  --ns-border: #c9d4e8;
   --ns-panelbg: #ffffff;
-  --ns-msgbg: #f4f6f3;
-  --ns-muted: #55645e;
+  --ns-msgbg: #ffffff;
+  --ns-muted: #4a5b7a;
 }
-
-.assistant-panels {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 240px;
-  gap: 16px;
-  margin-top: 16px;
-}
-
-/* Set the height once the runtime has mounted the chat, so a failed load leaves no
-   empty box. */
-#agent-app.ns-composed-app [data-ns-slot="chat"] { height: 620px; }
-/* The runtime gives the chat no background of its own. Keep --ns-msgbg different from
-   --ns-bg, or bot replies lose their bubble. */
+.assistant-panels { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; margin-top: 16px; }
+#agent-app.ns-composed-app [data-ns-slot="chat"] { height: clamp(360px, 52vh, 560px); }
 #agent-app .ns-chat { background: var(--ns-bg); }
-
+#agent-app .ns-llmbadge.pending { display: none; }
+#agent-app .ns-devtoggle, #agent-app .ns-action-status { display: none; }
 /* Site-wide form rules often stretch the runtime's own controls. Undo them here. */
 #agent-app input[type="checkbox"],
 #agent-app input[type="radio"] { width: auto; }
 #agent-app .ns-header { flex-wrap: wrap; }
-/* Site label rules add margins and bold text, and the inputs inside the labels inherit
-   the weight. */
 #agent-app .ns-settings-body label { margin: 4px 0; font-weight: 400; }
-/* Chat forms label radio groups with a legend, so site legend fonts would reach them. */
 #agent-app .ns-w-label { font-family: inherit; }
-/* Site label rules add margins to chat form fields and make their options bold. */
 #agent-app .ns-widget label { margin: 0; }
 #agent-app .ns-w-radio label,
 #agent-app .ns-w-multi label,
 #agent-app .ns-w-toggle { font-weight: 400; }
-/* The runtime sizes radio and multi-choice options but not the checkbox label. */
 #agent-app .ns-w-toggle { font-size: 13px; }
-/* The runtime spaces its buttons with gap. A site's button margin pushes Send below the input. */
 #agent-app button { margin: 0; }
-/* Chat choices are buttons with a light background. A site's button color can hide their
-   titles. */
 #agent-app .ns-w-choice { color: var(--ns-fg); }
-/* A site's button:hover background also reaches the runtime's plain buttons, behind
-   their dark text. Keep the runtime's own backgrounds. */
 #agent-app .ns-devtoggle:not(.on):hover,
 #agent-app .ns-modal-close:hover { background: transparent; }
 #agent-app .ns-w-choice:disabled:hover { background: #fafbfc; }
-/* The runtime's message rule hides the partner consent card's own background, and its
-   Decline label then has too little contrast. */
 #agent-app .ns-consent { background: #fffbeb; }
-/* While a consent card waits, the status line above it already says "Contacting", though
-   nothing has been sent. Hide it until the visitor answers. */
 #agent-app .ns-msgs:has(.ns-consent-actions) > .ns-turn-status { display: none; }
-/* Long links in a reply would run out of the bubble on a phone. "anywhere" would also
-   let the consent card's buttons shrink and split their labels. */
 #agent-app .ns-msg { overflow-wrap: break-word; }
-/* On a phone the consent card is too narrow for its three buttons in one row, and
-   "Always allow" breaks onto two lines. Keep each label whole and wrap the row. */
 #agent-app .ns-consent-actions { flex-wrap: wrap; }
 #agent-app .ns-consent-actions button { white-space: nowrap; }
+#agent-app select { width: auto; min-height: 0; padding: 4px 8px; background-image: none; appearance: auto; }
 
-/* site.js and the runtime add their confirmation dialogs to <body>, outside #agent-app.
-   Site h2 rules reach the heading, and the two buttons touch. A right margin keeps
-   wrapped buttons lined up on the left. */
-body > dialog h2 { margin: 0 0 12px; font: 700 1.25em system-ui, sans-serif; }
-body > dialog button { margin-right: 8px; }
-/* site.js's dialog: the details in two columns, and a plain decline button, so the two
-   choices do not look the same. */
-.assistant-review { max-width: 640px; width: 85%; max-height: 85vh; overflow: auto; border: 1px solid #888; border-radius: 12px; padding: 24px; font: 16px system-ui, sans-serif; }
+/* site.js and the runtime add their confirmation dialogs to <body>, outside #agent-app. */
+body > dialog:not(.request-dialog) { color: var(--ink); background: var(--paper); color-scheme: light; }
+body > dialog::backdrop { background: rgb(9 22 48 / .7); }
+body > dialog:not(.request-dialog) h2 { margin: 0 0 12px; font: 700 1.25em/1.25 "Albert Sans", "Segoe UI", system-ui, sans-serif; }
+body > dialog:not(.request-dialog) button { margin-right: 8px; }
+.assistant-review { max-width: 640px; width: 85%; max-height: 85vh; overflow: auto; border: 0; border-radius: 14px; padding: 24px; font: 16px/1.5 "Albert Sans", "Segoe UI", system-ui, sans-serif; }
 .assistant-review dl { display: grid; grid-template-columns: fit-content(40%) 1fr; gap: 4px 16px; margin: 12px 0; }
-.assistant-review dt { font-weight: 600; }
+.assistant-review dt { font-weight: 600; color: var(--muted); }
 .assistant-review dd { margin: 0; overflow-wrap: anywhere; }
 .assistant-review details { margin: 12px 0; }
 .assistant-review pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .assistant-review .assistant-decline { background: transparent; color: inherit; border: 1px solid currentColor; }
 
-@media (max-width: 760px) {
-  .assistant-panels { grid-template-columns: 1fr; }
-  /* On a phone, each detail goes under its label, so an email is not split. */
-  .assistant-review dl { grid-template-columns: 1fr; gap: 0; }
-  .assistant-review dd { margin-bottom: 8px; }
+.site-footer { text-align: center; color: var(--muted-night); font-size: .9rem; padding: 8px var(--gutter) 48px; }
+
+/* ---- smaller screens -------------------------------------------------------------- */
+@media (max-width: 960px) {
+  .hero { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .scene-figure { min-height: 0; height: auto; aspect-ratio: 900 / 600; -webkit-mask-image: none; mask-image: none; }
+  .hero-text { max-width: none; padding: 28px var(--gutter) 40px; }
+  .load-head { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .site-header { gap: 10px 12px; }
+  .site-header nav { margin-left: 0; width: 100%; gap: 20px; }
+  .sim-long { display: none; }
+  .sim-chip { margin-left: auto; }
+  .scene-figure { aspect-ratio: 16 / 10; }
+  /* Residents on a phone: the action comes before the timeline. */
+  .hero-actions { order: 3; margin-top: 22px; }
+  .runs { order: 4; }
+  .hero-note { order: 5; }
+  .request-form, .sliders, .fair, .rules-grid { grid-template-columns: minmax(0, 1fr); }
+  .assistant-panels { grid-template-columns: minmax(0, 1fr); }
+  .assistant-review { width: calc(100% - 24px); padding: 18px; font-size: 15px; }
+  .battery-gauge { height: 46px; }
+  .battery-cap { top: 12px; height: 18px; }
+  .form-actions > * { flex: 1 1 100%; }
 }
 
-.assistant-note { color: var(--muted); font-size: .9rem; }
-
-/* Night-slot request form: fields side by side where there is room. */
-.request-form { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: end; margin: 12px 0 6px; }
-.request-form label { flex: 1 1 9rem; }
-.request-form button { flex: 0 0 auto; }
-.link-button { background: none; border: none; padding: 0; color: inherit; text-decoration: underline; font: inherit; cursor: pointer; }
-.link-button:hover { background: none; color: var(--accent); }
+/* ---- motion: one sequence, only when wanted ---------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  .k-snow circle { animation: fall var(--fall) linear infinite; animation-delay: var(--fall-delay); }
+  @keyframes fall { from { transform: translate(0, -640px); } to { transform: translate(var(--drift), 40px); } }
+  .k-stars .twinkle { animation: twinkle var(--tw) ease-in-out infinite alternate; animation-delay: var(--tw-delay); }
+  @keyframes twinkle { to { opacity: .15; } }
+  /* The feed switches on from the electrical room outwards. */
+  .is-charging .k-feed { stroke-dasharray: 700; animation: feed-on 1.4s var(--ease) both .3s; }
+  @keyframes feed-on { from { stroke-dashoffset: 700; } }
+  .chip:active span, .button-primary:active, .button-secondary:active, .button-frost:active { transform: scale(.97); }
+  .site-header nav a { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; transition: background-size .3s var(--ease), color .2s; }
+  .site-header nav a:hover { background-size: 100% 1.5px; }
+}

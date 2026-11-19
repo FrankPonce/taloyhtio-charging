@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-11-19T00:13:38.142Z",
         "reason": "assistant verified 19 Nov: .card padding is clamp(18px,3vw,28px); static engine can't resolve clamp(); rendered detector scans at 390x844 and 1440x900 report no cramped-padding"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "sites/taloyhtio/index.html"
+        ],
+        "createdAt": "2026-11-19T10:06:47.855Z",
+        "reason": "assistant verified 19 Nov: .panel padding is clamp(20px,3.4vw,36px), rendered captures at 390 and 1440 show 20-36px insets; static engine can't resolve clamp() (same as Charge's exception)"
       }
     ]
   }
