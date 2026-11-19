@@ -120,19 +120,25 @@ export class NightLoad {
   async latest() {
     const t = tonight(this.now());
     const first = t.current ?? addDays(t.night, -1);
+    let answered = 0;
     for (let k = 0; k < 5; k++) {
       const night = addDays(first, -k);
       const r = await this.call("get_night_load", { night });
+      if (r.ok) answered++;
       if (r.ok && r.data?.scheduled) return { ...r.data, isCurrent: night === t.current };
     }
+    // "No night was planned" is a fact only if the scheduler actually answered.
+    if (!answered) throw new Error("The scheduler did not answer.");
     return null;
   }
 
   async load() {
+    this.failed = false;
     try {
       this.data = await this.latest();
     } catch {
       this.data = null;
+      this.failed = true;
     }
     this.render();
     return this.data;
@@ -141,6 +147,12 @@ export class NightLoad {
   render() {
     const heading = this.el("load-heading"), summary = this.el("load-summary"), figure = this.el("load-chart");
     if (!figure) return;
+    if (this.failed) {
+      heading.textContent = "The shared night";
+      summary.textContent = "The scheduler could not be reached just now, so the night's load can't be shown. The rest of the page still works; reload to try again.";
+      figure.replaceChildren();
+      return;
+    }
     if (!this.data) {
       heading.textContent = "The shared night";
       summary.textContent = "No planned night to show from the last few days. When residents send requests, the night's load appears here after 18:00.";

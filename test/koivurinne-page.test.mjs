@@ -3,7 +3,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { durationLabel, helsinkiMs, loadSummary, slotsOf, tonight } from "../sites/taloyhtio/js/night.js";
+import { NightLoad, durationLabel, helsinkiMs, loadSummary, slotsOf, tonight } from "../sites/taloyhtio/js/night.js";
+
+test("an unreachable scheduler is shown as unreachable, never as 'no night was planned'", async () => {
+  const doc = { getElementById: () => null };
+  const down = new NightLoad({ doc, call: async () => ({ ok: false, data: null }) });
+  await down.load();
+  assert.equal(down.failed, true);
+  const quiet = new NightLoad({ doc, call: async () => ({ ok: true, data: { scheduled: false } }) });
+  await quiet.load();
+  assert.deepEqual([quiet.failed, quiet.data], [false, null], "the scheduler answered: there really was no planned night");
+});
 
 test("the housing page's car list is the same file as Charge's", async () => {
   const a = await readFile(new URL("../sites/charge/js/cars.js", import.meta.url), "utf8");
