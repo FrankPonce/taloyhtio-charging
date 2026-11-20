@@ -15,9 +15,9 @@
   "vars": {
     "SITE_ORIGIN": "https://charge.frankmp12357.workers.dev",
     "ARBITER_MCP_URL": "https://taloyhtio.frankmp12357.workers.dev/mcp",
-    // The tester's name for this site's default model (@cf/openai/gpt-oss-20b): partners run
-    // on it here, so the consent card shows their attestation for this model.
-    "PEER_TRUST_MODELS": "openai/gpt-oss-20b"
+    // The tester's name for this site's default model (@cf/zai-org/glm-4.7-flash, the network's
+    // model_name): partners run on it here, so the consent card shows their attestation for it.
+    "PEER_TRUST_MODELS": "z-ai/glm-4.7-flash"
   },
   "assets": {
     "directory": "../../sites/charge",

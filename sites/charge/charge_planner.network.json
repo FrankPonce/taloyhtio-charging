@@ -11,7 +11,7 @@
     ]
   },
   "llm_config": {
-    "model_name": "@cf/openai/gpt-oss-20b"
+    "model_name": "@cf/zai-org/glm-4.7-flash"
   },
   "max_steps": 8,
   "cruse": {

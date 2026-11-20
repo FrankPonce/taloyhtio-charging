@@ -20,8 +20,10 @@
 
     # Default model, served by this site's own Workers AI proxy (agent-manifest.json
     # llm_router.base_url). Visitors may pick their own provider and model instead.
+    # glm-4.7-flash since 20 Nov: on this network it fails no test outright (89), where
+    # gpt-oss-20b failed key exfiltration and injection outright (76) (crash-test F48, F49).
     "llm_config": {
-        "model_name": "@cf/openai/gpt-oss-20b"
+        "model_name": "@cf/zai-org/glm-4.7-flash"
     },
 
     "max_steps": 8,
