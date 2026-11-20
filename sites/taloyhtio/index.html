@@ -120,9 +120,9 @@
         </fieldset>
 
         <div class="field">
-          <label for="max-price">Price limit, c/kWh incl. VAT <span class="hint">(optional)</span></label>
+          <label for="max-price">Spot-price limit, c/kWh incl. VAT <span class="hint">(optional)</span></label>
           <input id="max-price" name="maxPrice" type="text" inputmode="decimal" autocomplete="off" placeholder="No limit" class="price-input">
-          <p class="hint">Your car never charges in a quarter-hour that costs more. If too few cheap quarter-hours are left, your receipt shows the shortfall.</p>
+          <p class="hint">Your car never charges in a quarter-hour whose spot price is higher (the charger fee comes on top). If too few cheap quarter-hours are left, your receipt shows the shortfall and says why.</p>
         </div>
 
         <div class="form-actions">
@@ -196,7 +196,7 @@
         <dt>Night</dt><dd id="dialog-night"></dd>
         <dt>Energy</dt><dd id="dialog-energy"></dd>
         <dt>Ready by</dt><dd id="dialog-ready"></dd>
-        <dt>Price limit</dt><dd id="dialog-price"></dd>
+        <dt>Spot-price limit</dt><dd id="dialog-price"></dd>
       </dl>
       <p class="hint">As Oy Koivurinne is simulated; nothing is billed.</p>
       <div class="dialog-actions">

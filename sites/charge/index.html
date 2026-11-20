@@ -156,12 +156,12 @@
       <form id="housing-form" class="housing-form" autocomplete="off">
         <label for="resident-code">Resident code from the board</label>
         <input id="resident-code" name="residentCode" type="password" autocomplete="off" spellcheck="false" placeholder="koivu-…">
-        <label for="max-price">Price limit, c/kWh incl. VAT <span class="hint">(optional: your car never charges above it)</span></label>
+        <label for="max-price">Spot-price limit, c/kWh incl. VAT <span class="hint">(optional: your car never charges when the spot price is higher; the charger fee comes on top)</span></label>
         <input id="max-price" name="maxPrice" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 8" class="price-input">
         <button type="submit">Save for this tab</button>
         <button type="button" id="housing-forget" hidden>Forget</button>
       </form>
-      <p class="fine"><span id="housing-code-state">No resident code saved.</span> It stays on this page and is sent only to the housing company through this site's server; the assistant never sees it. Your price limit stays here too: the assistant can't set or change it, and the housing company's scheduler enforces it. No code? Get a simulated one-night <a href="https://taloyhtio.frankmp12357.workers.dev/#request">demo resident code</a> on the housing company's page.</p>
+      <p class="fine"><span id="housing-code-state">No resident code saved.</span> It stays on this page and is sent only to the housing company through this site's server; the assistant never sees it. Your spot-price limit stays here too: the assistant can't set or change it, and the housing company's scheduler enforces it. No code? Get a simulated one-night <a href="https://taloyhtio.frankmp12357.workers.dev/#request">demo resident code</a> on the housing company's page.</p>
       <p class="fine">No time to wait for 18:00? <a href="https://taloyhtio.frankmp12357.workers.dev/#request">Try a practice night</a>: it plans your car at once with simulated neighbours, and your browser checks the signed result. Why the housing company lets this site's assistant in, and refuses others: <a href="https://crashtest.frankmp12357.workers.dev/health">live checks</a>.</p>
       <ul id="housing-requests" class="plain"></ul>
       <button type="button" id="housing-receipt" hidden>Check my latest receipt</button>

@@ -23,7 +23,7 @@ test("forwards one tool call, signed as this site (RFC 9421), and returns the re
   assert.equal(res.status, 200);
   assert.equal((await res.json()).result.content[0].text, "ok");
   assert.equal(seen.url, ARBITER);
-  assert.deepEqual(JSON.parse(seen.body), { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_rules", arguments: {} } });
+  assert.deepEqual(JSON.parse(seen.body), { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_rules", arguments: {}, _meta: { "agent-trust-kit/network": "https://charge.example/charge_planner" } } }, "declares which of its networks sends the call");
   const v = await verifyRequest(seen, { jwks: await keyDirectory([publicJwk]) });
   assert.equal(v.ok, true, v.reason);
   assert.equal(v.agent, SITE);
@@ -54,12 +54,12 @@ test("the model the page ran on goes into the signed body, in tester naming", as
     return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { content: [{ type: "text", text: "ok" }] } }));
   };
   await arbiterProxy(page({ tool: "get_rules", arguments: {}, model: "@cf/zai-org/glm-4.7-flash" }), ENV, { fetchImpl });
-  assert.deepEqual(JSON.parse(seen.body).params._meta, { "agent-trust-kit/model": "z-ai/glm-4.7-flash" });
+  assert.deepEqual(JSON.parse(seen.body).params._meta, { "agent-trust-kit/model": "z-ai/glm-4.7-flash", "agent-trust-kit/network": "https://charge.example/charge_planner" });
   assert.equal((await verifyRequest(seen, { jwks: await keyDirectory([publicJwk]) })).ok, true, "the model is covered by the signature");
   await arbiterProxy(page({ tool: "get_rules", arguments: {}, model: "deepseek/deepseek-v4.1-flash" }), ENV, { fetchImpl });
   assert.equal(JSON.parse(seen.body).params._meta["agent-trust-kit/model"], "deepseek/deepseek-v4.1-flash", "a visitor's own model passes as named");
   await arbiterProxy(page({ tool: "get_rules", arguments: {} }), ENV, { fetchImpl });
-  assert.equal(JSON.parse(seen.body).params._meta, undefined, "no model: none is claimed (the arbiter then refuses)");
+  assert.equal(JSON.parse(seen.body).params._meta["agent-trust-kit/model"], undefined, "no model: none is claimed (the arbiter then refuses)");
 });
 
 test("the route exists only where ARBITER_MCP_URL is set (not on the housing site)", async () => {

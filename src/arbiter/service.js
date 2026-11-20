@@ -130,15 +130,25 @@ export async function submitRequest(db, input, { now = Date.now(), callerNetwork
   const id = randomId("req");
   const problem = requestProblem({ id, commitment, ...sealed });
   if (problem) throw new ArbiterError(problem, "bad_request");
+  let result;
   try {
-    await db.prepare(
+    // Inserted only while the night is not planned yet, in the same statement: a request that
+    // passed the clock check just before 18:00 can't land after the night's plan was read.
+    result = await db.prepare(
       `INSERT INTO requests (id, night, resident, energy_kwh, charger_kw, from_ms, ready_by_ms, max_price_cents, nonce, commitment, caller_network_sha256, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(id, night, resident, sealed.energyKwh, chargerKw, sealed.fromMs, sealed.readyByMs, sealed.maxPriceCents ?? null, nonce, commitment, callerNetworkSha256, new Date(now).toISOString()).run();
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM nights WHERE night = ?)`,
+    ).bind(id, night, resident, sealed.energyKwh, chargerKw, sealed.fromMs, sealed.readyByMs, sealed.maxPriceCents ?? null, nonce, commitment, callerNetworkSha256, new Date(now).toISOString(), night).run();
   } catch (error) {
-    if (/UNIQUE/i.test(String(error?.message))) throw new ArbiterError(`You already sent a request for the night of ${night}. One request per night.`, "duplicate");
-    throw error;
+    if (!/UNIQUE/i.test(String(error?.message))) throw error;
+    // One request per resident per night. If the answer to the first one was lost, sending the
+    // same request again returns it (with its ID and commitment); a different one is refused.
+    const prev = await db.prepare("SELECT * FROM requests WHERE resident = ? AND night = ?").bind(resident, night).first();
+    const same = prev && prev.energy_kwh === sealed.energyKwh && prev.charger_kw === chargerKw && prev.ready_by_ms === sealed.readyByMs
+      && (prev.max_price_cents ?? null) === (sealed.maxPriceCents ?? null);
+    if (same) return { request_id: prev.id, commitment: prev.commitment, night, requests_close_at: new Date(terms.deadlineMs).toISOString(), status: "already_received" };
+    throw new ArbiterError(`You already sent a different request for the night of ${night} (request ${prev?.id ?? "?"}). One request per night, and it can't be changed.`, "duplicate");
   }
+  if (result?.meta?.changes === 0) throw new ArbiterError(`Requests for the night of ${night} are closed: the night is already planned.`, "closed");
   return { request_id: id, commitment, night, requests_close_at: new Date(terms.deadlineMs).toISOString(), status: "received" };
 }
 
@@ -166,10 +176,11 @@ export async function nightPrices(night, { fetchImpl = globalThis.fetch } = {}) 
  * Schedule a night once, after its deadline: plan, sign every receipt, store atomically.
  * Safe to call repeatedly or concurrently; the first complete call wins and the night is final.
  *
- * :param opts: {now, prices: [{start,end,price}] (optional, else fetched), fetchImpl, privateJwk, issuer}.
+ * :param opts: {now, prices: [{start,end,price}] (optional, else fetched), fetchImpl, privateJwk, issuer,
+ *     beforeWrite (tests: runs between reading the requests and writing the night)}.
  * :return: {night, scheduled: true, created: bool} or {night, scheduled: false, requests_close_at}.
  */
-export async function scheduleIfDue(db, night, { now = Date.now(), prices = null, fetchImpl, privateJwk, issuer }) {
+export async function scheduleIfDue(db, night, { now = Date.now(), prices = null, fetchImpl, privateJwk, issuer, attempt = 1, beforeWrite = null }) {
   const terms = nightTerms(night);
   if (now < terms.deadlineMs) return { night, scheduled: false, requests_close_at: new Date(terms.deadlineMs).toISOString() };
   if (await db.prepare("SELECT night FROM nights WHERE night = ?").bind(night).first()) return { night, scheduled: true, created: false };
@@ -185,15 +196,20 @@ export async function scheduleIfDue(db, night, { now = Date.now(), prices = null
   const pricesSha256 = await pricesSnapshotHash(used);
   const at = new Date(now).toISOString();
 
+  // Every statement applies only if the night still has exactly the requests read above, in
+  // one atomic batch: a request that slipped in meanwhile makes the whole batch a no-op, and
+  // the night is planned again with it. No request is ever accepted and left without a receipt.
+  if (beforeWrite) await beforeWrite();
+  const same = "(SELECT COUNT(*) FROM requests WHERE night = ?) = ?";
   const statements = [
     db.prepare(
       `INSERT INTO nights (night, rule_version, limit_kw, fee_cents_per_kwh, prices_snapshot_sha256, prices_json, load_json, scheduled_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(night, schedule.ruleVersion, schedule.limitKw, schedule.feeCentsPerKwh, pricesSha256, JSON.stringify(used), JSON.stringify(schedule.load), at),
+       SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${same}`,
+    ).bind(night, schedule.ruleVersion, schedule.limitKw, schedule.feeCentsPerKwh, pricesSha256, JSON.stringify(used), JSON.stringify(schedule.load), at, night, rows.length),
   ];
   for (const a of schedule.assignments) {
     const jws = await signReceipt(receiptFor({ schedule, requestId: a.id, issuer, night, pricesSha256, now }), privateJwk);
-    statements.push(db.prepare("INSERT INTO receipts (request_id, night, jws, issued_at) VALUES (?, ?, ?, ?)").bind(a.id, night, jws, at));
+    statements.push(db.prepare(`INSERT INTO receipts (request_id, night, jws, issued_at) SELECT ?, ?, ?, ? WHERE ${same}`).bind(a.id, night, jws, at, night, rows.length));
   }
   try {
     await db.batch(statements);
@@ -203,6 +219,11 @@ export async function scheduleIfDue(db, night, { now = Date.now(), prices = null
       return { night, scheduled: true, created: false };
     }
     throw error;
+  }
+  if (!(await db.prepare("SELECT night FROM nights WHERE night = ?").bind(night).first())) {
+    // A request arrived between reading and writing: plan again, now with it.
+    if (attempt >= 3) throw new ArbiterError(`The night of ${night} kept changing while it was being planned. Try again.`, "busy");
+    return scheduleIfDue(db, night, { now, prices: used, fetchImpl, privateJwk, issuer, attempt: attempt + 1, beforeWrite });
   }
   return { night, scheduled: true, created: true };
 }

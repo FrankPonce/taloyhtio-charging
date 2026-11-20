@@ -265,9 +265,9 @@ export class AssistantMount {
         "Energy": `${check.energyKwh} kWh`,
         "Ready by": `${check.readyByLabel} (Finnish time)`,
         "Charging power": `up to ${check.chargerKw} kW`,
-        "Price limit": check.maxPriceCents === null
+        "Spot-price limit": check.maxPriceCents === null
           ? "none (set one in the Shared chargers box)"
-          : `never above ${check.maxPriceCents} c/kWh, set by you on this page; the assistant can't change it`,
+          : `never above ${check.maxPriceCents} c/kWh spot price (fee extra), set by you on this page; the assistant can't change it`,
         "Resident code": "saved on this page; the assistant never sees it",
         "Sent to": "As Oy Koivurinne (simulated), through this site's server",
       };

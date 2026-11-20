@@ -11,6 +11,8 @@ import { scheduleNight } from "../src/arbiter/scheduler.js";
 import { pricesSnapshotHash, verifyReceipt } from "../src/arbiter/receipt.js";
 
 const ISSUER = "https://taloyhtio.example";
+// The service tests run without the admission check, explicitly (the handler fails closed).
+const ALLOW_ALL = async () => ({ ok: true, caller: "test" });
 const NIGHT = "2026-12-22";
 const BEFORE = Date.parse("2026-12-22T10:00:00Z"); // 12:00 in Helsinki
 const AFTER = Date.parse("2026-12-22T16:30:00Z"); // 18:30 in Helsinki
@@ -55,7 +57,7 @@ async function setup() {
     const res = await handleArbiterMcp(
       new Request(`${ISSUER}/mcp`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: args } }) }),
       env,
-      { now, fetchImpl: prices.fetchImpl, privateJwk, issuer: ISSUER },
+      { now, fetchImpl: prices.fetchImpl, privateJwk, issuer: ISSUER, authorize: ALLOW_ALL },
     );
     const body = await res.json();
     assert.ok(!body.error, JSON.stringify(body.error));
@@ -238,6 +240,55 @@ test("a resident's maximum price is sealed, enforced and shown on the signed rec
   assert.equal(s.max_price_cents, 2.5);
   assert.ok(s.slots.length > 0 && s.slots.every((x) => x.price_cents <= 2.5));
   assert.equal(s.feasible, false, "60 kWh does not fit in the slots at or under 2.5 c");
-  assert.match(got.content[0].text, /at or below your 2\.5 c\/kWh limit/);
+  assert.match(got.content[0].text, /at or below your 2\.5 c\/kWh spot-price limit/);
+  assert.match(got.content[0].text, /00:00–00:45, 01:00–01:45/, "the real charging intervals, gaps kept");
+  assert.equal(s.shortfall_reason, "price_limit");
   assert.equal(verified.receipt.rule_version, "koivurinne-fair-share/2");
+});
+
+test("deadline race: a request that slips in while the night is planned still gets a receipt; after that, nothing gets in", async () => {
+  const { submitRequest, scheduleIfDue } = await import("../src/arbiter/service.js");
+  const { db, prices, privateJwk } = await setup();
+  await submitRequest(db, { residentCode: RESIDENTS[0].code, energyKwh: 20, readyBy: "07:00" }, { now: BEFORE });
+  // Between reading the requests and writing the night, a second request lands (it passed the
+  // clock check just before 18:00).
+  let slipped = false;
+  const r = await scheduleIfDue(db, NIGHT, {
+    now: AFTER, fetchImpl: prices.fetchImpl, privateJwk, issuer: ISSUER,
+    beforeWrite: async () => {
+      if (slipped) return;
+      slipped = true;
+      await submitRequest(db, { residentCode: RESIDENTS[1].code, energyKwh: 15, readyBy: "06:00" }, { now: BEFORE });
+    },
+  });
+  assert.equal(r.scheduled, true);
+  const n = await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE night = ?").bind(NIGHT).first();
+  const k = await db.prepare("SELECT COUNT(*) AS n FROM receipts WHERE night = ?").bind(NIGHT).first();
+  assert.deepEqual([n.n, k.n], [2, 2], "every accepted request has a receipt");
+  // Once the night is planned, a request that passed the clock check is still refused.
+  await assert.rejects(submitRequest(db, { residentCode: RESIDENTS[2].code, energyKwh: 10, readyBy: "07:00" }, { now: BEFORE }), /closed: the night is already planned/);
+});
+
+test("a lost answer is recoverable: the same request again returns the original; a different one is refused", async () => {
+  const { submitRequest } = await import("../src/arbiter/service.js");
+  const { db } = await setup();
+  const ask = { residentCode: RESIDENTS[0].code, energyKwh: 20, readyBy: "07:00", maxPriceCents: 6 };
+  const first = await submitRequest(db, ask, { now: BEFORE });
+  const again = await submitRequest(db, ask, { now: BEFORE + 1000 });
+  assert.equal(again.status, "already_received");
+  assert.deepEqual([again.request_id, again.commitment], [first.request_id, first.commitment]);
+  await assert.rejects(submitRequest(db, { ...ask, maxPriceCents: 9 }, { now: BEFORE }), new RegExp(`different request .*${first.request_id}`));
+});
+
+test("no admission check wired: protected tools refuse instead of opening up", async () => {
+  const { db } = await setup();
+  const res = await handleArbiterMcp(
+    new Request(`${ISSUER}/mcp`, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "submit_charging_request", arguments: { resident_code: RESIDENTS[0].code, energy_kwh: 20, ready_by: "07:00" } } }) }),
+    { ARBITER_DB: db }, { now: BEFORE },
+  );
+  const r = (await res.json()).result;
+  assert.equal(r.isError, true);
+  assert.match(r.content[0].text, /no admission check configured/);
+  const rules = await handleArbiterMcp(new Request(`${ISSUER}/mcp`, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_rules", arguments: {} } }) }), { ARBITER_DB: db }, { now: BEFORE });
+  assert.ok(!(await rules.json()).result.isError, "reading the rules needs no admission");
 });

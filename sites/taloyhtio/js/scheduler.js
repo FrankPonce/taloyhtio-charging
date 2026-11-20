@@ -132,6 +132,13 @@ export function scheduleNight({ requests, prices, limitKw, feeCentsPerKwh = 0 })
       totalEur: round((energyCostCents + feeCents) / 100, 2),
     };
     if (r.maxPriceCents !== undefined && r.maxPriceCents !== null) assignment.maxPriceCents = r.maxPriceCents;
+    // Why a request fell short, so the receipt can say it plainly: the resident's own price
+    // limit (slots in the window cost more), or capacity (the shared limit, the car's charger
+    // power and the window were full).
+    if (remainingWh > 0) {
+      const capped = Number.isFinite(r.maxPriceCents) && slots.some((s) => s.start >= r.fromMs && s.end <= r.readyByMs && s.price > r.maxPriceCents);
+      assignment.shortfallReason = capped ? "price_limit" : "capacity";
+    }
     return assignment;
   });
 

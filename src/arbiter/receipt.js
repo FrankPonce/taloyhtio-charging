@@ -65,6 +65,7 @@ export function receiptFor({ schedule, requestId, issuer, night, pricesSha256, n
       shortfall_kwh: a.shortfallKwh,
       feasible: a.feasible,
       ...(a.maxPriceCents !== undefined ? { max_price_cents: a.maxPriceCents } : {}),
+      ...(a.shortfallReason ? { shortfall_reason: a.shortfallReason } : {}),
       slots: a.slots.map((s) => ({ start: new Date(s.start).toISOString(), end: new Date(s.end).toISOString(), kw: s.kw, kwh: s.kwh, price_cents: s.price })),
     },
     cost: { energy_eur: a.energyCostEur, fee_eur: a.feeEur, total_eur: a.totalEur },

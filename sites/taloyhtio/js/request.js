@@ -295,7 +295,7 @@ export class RequestForm {
       return cell;
     }));
     const s = receipt.schedule;
-    const cap = s.max_price_cents === undefined ? "" : ` (your limit: ${s.max_price_cents} c/kWh)`;
+    const cap = s.max_price_cents === undefined ? "" : s.shortfall_reason === "price_limit" ? `, because of your ${s.max_price_cents} c/kWh spot-price limit` : ` (your spot-price limit: ${s.max_price_cents} c/kWh)`;
     this.setText("receipt-energy", `${s.delivered_kwh} of ${s.requested_kwh} kWh${s.feasible ? ", fully met" : `, short by ${s.shortfall_kwh} kWh`}${cap}`);
     this.setText("receipt-cost", `€${Number(receipt.cost?.total_eur ?? 0).toFixed(2)} incl. the charger fee`);
     this.setText("receipt-signer", new URL(receipt.iss).host);

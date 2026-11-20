@@ -14,6 +14,8 @@ import { signRequest } from "agent-trust-kit/http";
 
 export const ARBITER_TOOLS = ["get_rules", "submit_charging_request", "get_receipt", "get_night_load"];
 const MAX_BODY = 8 * 1024;
+// The network on this site whose agent sends these requests (declared in the signed body).
+const NETWORK = "/charge_planner";
 
 // Trust is network × model: the page says which model its assistant ran on, and the signed
 // call carries it (agent-trust-kit signRequest { model }), so the arbiter checks the
@@ -77,7 +79,7 @@ export async function arbiterProxy(request, env, { fetchImpl = globalThis.fetch,
   const signed = await signRequest(
     { method: "POST", url: env.ARBITER_MCP_URL, headers: { "content-type": "application/json", accept: "application/json" }, body },
     // The kit puts the model in the signed body (params._meta), so the signature covers it.
-    { privateJwk: key, signatureAgent: env.SITE_ORIGIN, model },
+    { privateJwk: key, signatureAgent: env.SITE_ORIGIN, model, network: new URL(NETWORK, env.SITE_ORIGIN).href },
   );
   let resp;
   try {

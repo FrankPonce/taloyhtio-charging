@@ -187,10 +187,11 @@ function db(env) {
 /**
  * Sending a request or reading a receipt needs an admitted caller: the housing site's own
  * page, or another site's server that passed the admission check (admission.js). The
- * host decides via ctx.authorize(); without one (tests of the service alone) all callers pass.
+ * host decides via ctx.authorize(). Without one, protected tools refuse: forgetting to wire
+ * the check must never open the arbiter (tests pass an explicit allow-all).
  */
 async function admitted(ctx) {
-  if (typeof ctx.authorize !== "function") return { ok: true };
+  if (typeof ctx.authorize !== "function") throw new ArbiterError("This server has no admission check configured, so it accepts no requests.", "not_configured");
   const d = await ctx.authorize();
   if (!d.ok) throw new ArbiterError(`Not admitted (${d.step}): ${d.reason}`, "not_admitted");
   return d;
@@ -215,7 +216,7 @@ const HANDLERS = {
       maxPriceCents: args.max_price_cents,
     }, { now: ctx.now ?? Date.now(), callerNetworkSha256: caller.network_sha256 ?? null });
     const cap = args.max_price_cents === undefined || args.max_price_cents === null ? "" : `, never above ${args.max_price_cents} c/kWh`;
-    const text = `Request received for the night of ${r.night}: ${args.energy_kwh} kWh by ${args.ready_by}${cap}. Request ID ${r.request_id}. `
+    const text = `${r.status === "already_received" ? "Already received earlier (this is the same request, nothing new was sent). " : ""}Request received for the night of ${r.night}: ${args.energy_kwh} kWh by ${args.ready_by}${cap}. Request ID ${r.request_id}. `
       + `Commitment ${r.commitment.slice(0, 16)}… (proof of exactly what was asked). The night is planned after ${hhmm(r.requests_close_at)}; then get_receipt returns the signed plan and cost.`;
     return toolResult(text, r);
   },
@@ -225,9 +226,16 @@ const HANDLERS = {
     const r = await getReceipt(db(env), { requestId: args.request_id, residentCode: args.resident_code }, ctx);
     if (r.status === "pending") return toolResult(`Not planned yet: requests for the night of ${r.night} close at ${hhmm(r.requests_close_at)}. Ask again after that.`, r);
     const s = r.receipt.schedule;
-    const windows = s.slots.length ? `${hhmm(s.slots[0].start)}–${hhmm(s.slots.at(-1).end)} (${s.slots.length} slots of 15 min)` : "no slots";
+    // The actual charging intervals: back-to-back quarter-hours joined, gaps kept.
+    const runs = [];
+    for (const x of s.slots) {
+      const last = runs.at(-1);
+      if (last && last.end === x.start) last.end = x.end;
+      else runs.push({ start: x.start, end: x.end });
+    }
+    const windows = runs.length ? `${runs.map((w) => `${hhmm(w.start)}–${hhmm(w.end)}`).join(", ")} (${s.slots.length} quarter-hours)` : "no quarter-hours";
     const text = `Plan for the night of ${r.night}: ${s.delivered_kwh} of ${s.requested_kwh} kWh, ${windows}. `
-      + `${s.feasible ? "Fully met." : `Short by ${s.shortfall_kwh} kWh: ${s.max_price_cents === undefined ? "the shared limit was full before your ready-by time" : `not enough room in slots at or below your ${s.max_price_cents} c/kWh limit before your ready-by time`}.`} `
+      + `${s.feasible ? "Fully met." : `Short by ${s.shortfall_kwh} kWh: ${s.shortfall_reason === "price_limit" ? `not enough room in quarter-hours at or below your ${s.max_price_cents} c/kWh spot-price limit before your ready-by time` : "the shared limit and your charger were full before your ready-by time"}.`} `
       + `Cost ${eur(r.receipt.cost.total_eur)} (energy ${eur(r.receipt.cost.energy_eur)} + fee ${eur(r.receipt.cost.fee_eur)}). `
       + `Signed by ${r.receipt.iss}; anyone can verify it with the site's published keys.`;
     return toolResult(text, r);
