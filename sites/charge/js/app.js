@@ -153,6 +153,11 @@ export class App {
             return li;
           }));
         }
+        const cont = d.getElementById("plan-continuous");
+        if (cont) {
+          cont.hidden = !p.continuousNote;
+          cont.textContent = p.continuousNote ?? "";
+        }
       }
     }
     this.drawCharts();
@@ -362,9 +367,21 @@ export function planSummary(plan, input) {
     "",
     `- Energy cost: **${euro(plan.costEur)}** (charging right away: ${euro(plan.baselineCostEur)}, so you save **${euro(plan.savingsEur)}**)`,
     `- Average price: ${cents(plan.averagePriceCents)} · done by ${weekdayLabel(plan.finishesAtMs)} ${helsinkiClock(plan.finishesAtMs)}`,
+    ...(continuousNote(plan) ? [`- ${continuousNote(plan)}`] : []),
     "",
     "*Energy only, at spot prices including VAT. Grid transfer fees and the seller's margin are not included.*",
   ].join("\n");
+}
+
+/**
+ * When the cheapest plan is split into several windows: what that needs, and the cheapest
+ * single session instead. Null for a plan that is already one window.
+ */
+export function continuousNote(plan) {
+  if (plan.windows.length < 2 || !plan.continuous) return null;
+  const c = plan.continuous;
+  const extra = Math.max(0, Math.round((c.costEur - plan.costEur) * 100) / 100);
+  return `This plan has ${plan.windows.length} separate windows, so your car or charger app must take a charging schedule. One continuous session instead: ${windowLabel(c.start, c.end)}, ${euro(c.costEur)}${extra > 0 ? ` (${euro(extra)} more)` : ""}.`;
 }
 
 function formatPlan(plan, input) {
@@ -381,6 +398,7 @@ function formatPlan(plan, input) {
     savings: euro(plan.savingsEur),
     averagePrice: cents(plan.averagePriceCents),
     finishesAt: at(plan.finishesAtMs),
+    continuousNote: continuousNote(plan),
     note: "Energy cost only, at spot prices including VAT. Grid transfer fees and the seller's margin are not included.",
   };
 }
@@ -415,6 +433,12 @@ if (globalThis.document?.getElementById("plan-form")) {
   App.page.start().catch((error) => {
     console.error("Price load failed", error);
     App.page.showFormError("Could not load prices. Check your connection and reload the page.");
+    // The hero said "Prices are loading": say what happened instead of waiting forever.
+    const empty = globalThis.document.getElementById("hero-empty");
+    if (empty) {
+      empty.textContent = "Prices could not be loaded right now. Reload the page in a minute; the plan works as soon as they arrive.";
+      empty.hidden = false;
+    }
   }).finally(() => {
     App.page.carForm = new CarForm(globalThis.document, (draft) => App.page.setDraft(draft), () => App.page.readyRange());
     App.page.carForm.bind();

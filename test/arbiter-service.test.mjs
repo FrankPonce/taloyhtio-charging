@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { keyDirectory, newSiteKey, sha256Hex } from "agent-trust-kit";
 import { migratedDb } from "./d1-sqlite.mjs";
 import { handleArbiterMcp } from "../src/arbiter/mcp.js";
-import { nightTerms, readyByOf, openNight } from "../src/arbiter/service.js";
+import { nightTerms, readyByOf, openNight, planClosedNight } from "../src/arbiter/service.js";
 import { scheduleNight } from "../src/arbiter/scheduler.js";
 import { pricesSnapshotHash, verifyReceipt } from "../src/arbiter/receipt.js";
 
@@ -61,7 +61,7 @@ async function setup() {
     assert.ok(!body.error, JSON.stringify(body.error));
     return body.result;
   };
-  return { db, call, jwks: await keyDirectory([publicJwk]), prices };
+  return { db, call, jwks: await keyDirectory([publicJwk]), prices, privateJwk };
 }
 
 const ASKS = [
@@ -204,4 +204,40 @@ test("night load: an empty closed night is never scheduled; a closed night with 
   assert.equal(planned.structuredContent.scheduled, true);
   assert.equal(planned.structuredContent.requests, 1);
   assert.ok(planned.structuredContent.load.length > 0);
+});
+
+test("the 18:05 timer plans tonight once: not before the deadline, not an empty night, not twice", async () => {
+  const { db, call, prices, privateJwk } = await setup();
+  const opts = (now) => ({ now, fetchImpl: prices.fetchImpl, privateJwk, issuer: ISSUER });
+  assert.deepEqual(await planClosedNight(db, opts(AFTER)), { night: NIGHT, planned: false, why: "no requests" }, "nobody asked: nothing written, no prices fetched");
+  assert.equal(prices.calls.length, 0);
+  const sent = await call("submit_charging_request", { resident_code: RESIDENTS[0].code, energy_kwh: 20, ready_by: "06:00" }, BEFORE);
+  assert.equal((await planClosedNight(db, opts(BEFORE))).why, "requests are still open");
+  assert.deepEqual(await planClosedNight(db, opts(AFTER)), { night: NIGHT, planned: true, created: true });
+  assert.deepEqual(await planClosedNight(db, opts(AFTER + 60_000)), { night: NIGHT, planned: true, created: false }, "a second trigger changes nothing");
+  const fetched = prices.calls.length;
+  const receipt = await call("get_receipt", { request_id: sent.structuredContent.request_id, resident_code: RESIDENTS[0].code }, AFTER + 120_000);
+  assert.equal(receipt.structuredContent.status, "scheduled", "the receipt is ready the moment someone asks");
+  assert.equal(prices.calls.length, fetched, "reading it plans nothing again");
+});
+
+test("a resident's maximum price is sealed, enforced and shown on the signed receipt", async () => {
+  const { db, call, jwks } = await setup();
+  // Night prices in the fake API: 22:00-24:00 run 4.5-6 c, 00:00-06:00 run 2-2.75 c.
+  const r = await call("submit_charging_request", { resident_code: RESIDENTS[0].code, energy_kwh: 60, ready_by: "07:00", max_price_cents: 2.5 }, BEFORE);
+  assert.ok(!r.isError, r.content[0].text);
+  assert.match(r.content[0].text, /never above 2\.5 c\/kWh/);
+  const row = await db.prepare("SELECT max_price_cents FROM requests WHERE id = ?").bind(r.structuredContent.request_id).first();
+  assert.equal(row.max_price_cents, 2.5);
+
+  const got = await call("get_receipt", { request_id: r.structuredContent.request_id, resident_code: RESIDENTS[0].code }, AFTER);
+  assert.ok(!got.isError, got.content[0].text);
+  const verified = await verifyReceipt(got.structuredContent.receipt_jws, { issuer: ISSUER, jwks });
+  assert.equal(verified.ok, true, verified.reason);
+  const s = verified.receipt.schedule;
+  assert.equal(s.max_price_cents, 2.5);
+  assert.ok(s.slots.length > 0 && s.slots.every((x) => x.price_cents <= 2.5));
+  assert.equal(s.feasible, false, "60 kWh does not fit in the slots at or under 2.5 c");
+  assert.match(got.content[0].text, /at or below your 2\.5 c\/kWh limit/);
+  assert.equal(verified.receipt.rule_version, "koivurinne-fair-share/2");
 });

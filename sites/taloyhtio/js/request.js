@@ -44,8 +44,10 @@ export class RequestForm {
   }
 
   /** Send the form's request. Returns the scheduler's answer. */
-  async submit({ code, energyKwh, readyBy }) {
-    const r = await this.call("submit_charging_request", { resident_code: String(code).trim(), energy_kwh: Number(energyKwh), ready_by: readyBy });
+  async submit({ code, energyKwh, readyBy, maxPriceCents = null }) {
+    const args = { resident_code: String(code).trim(), energy_kwh: Number(energyKwh), ready_by: readyBy };
+    if (maxPriceCents !== null && maxPriceCents !== undefined) args.max_price_cents = maxPriceCents;
+    const r = await this.call("submit_charging_request", args);
     if (r.ok) {
       const list = [{ request_id: r.data.request_id, night: r.data.night, energyKwh: Number(energyKwh), readyBy }];
       this.local?.setItem(SENT_KEY, JSON.stringify(list));
@@ -58,6 +60,45 @@ export class RequestForm {
     const last = this.last();
     if (!last) return { ok: false, text: "No request has been sent from this browser." };
     return this.call("get_receipt", { request_id: last.request_id, resident_code: String(code).trim() });
+  }
+
+  /** Plan a practice night now (no code, nothing stored). */
+  async practice({ energyKwh, readyBy, maxPriceCents = null }) {
+    const body = { energy_kwh: Number(energyKwh), ready_by: readyBy, ...(maxPriceCents === null ? {} : { max_price_cents: maxPriceCents }) };
+    const resp = await this.fetchImpl("/api/practice-night", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const answer = await resp.json().catch(() => null);
+    if (!resp.ok || !answer?.receipt_jws) return { ok: false, text: answer?.error || `No practice night (HTTP ${resp.status}).` };
+    return { ok: true, answer };
+  }
+
+  /** Show a practice night: the receipt, every car's result, and the browser's own checks. */
+  async drawPractice(answer) {
+    this.drawReceipt(answer.receipt, { title: "Your practice plan (signed, marked practice)" });
+    const view = this.el("practice-view");
+    if (!view) return;
+    const eur = (x) => `€${Number(x).toFixed(2)}`;
+    this.el("practice-cars")?.replaceChildren(...answer.plans.map((p) => {
+      const li = this.doc.createElement("li");
+      li.textContent = `${p.label}: ${p.deliveredKwh} of ${p.requestedKwh} kWh, ${eur(p.totalEur)}`;
+      return li;
+    }));
+    const list = this.el("practice-checks");
+    const item = (ok, text) => {
+      const li = this.doc.createElement("li");
+      li.className = ok ? "is-ok" : "is-bad";
+      li.textContent = text;
+      return li;
+    };
+    list?.replaceChildren(item(true, "Checking…"));
+    view.hidden = false;
+    try {
+      const { checkPracticeNight } = await import("./verify-night.js");
+      const dir = await (await this.fetchImpl("/.well-known/http-message-signatures-directory")).json();
+      const checks = await checkPracticeNight(answer, { keyDirectory: dir, issuer: globalThis.location?.origin ?? answer.receipt.iss });
+      list?.replaceChildren(...checks.map((c) => item(c.ok, c.text)));
+    } catch (error) {
+      list?.replaceChildren(item(false, `Your browser could not run the checks: ${error?.message || error}.`));
+    }
   }
 
   /** Ask this site for a one-night demo resident code (simulated). */
@@ -96,7 +137,7 @@ export class RequestForm {
       if (!values.ok) return this.show({ ok: false, text: values.reason });
       if (!(await this.confirm(values))) return;
       this.show({ ok: true, text: "Sending…" });
-      const r = await this.submit({ code: form.elements.code.value, energyKwh: values.energyKwh, readyBy: values.readyBy });
+      const r = await this.submit({ code: form.elements.code.value, energyKwh: values.energyKwh, readyBy: values.readyBy, maxPriceCents: values.maxPriceCents });
       this.show(r.ok ? { ok: true, text: `Request received for the night of ${this.nightRange(r.data.night ?? values.night)}. It is final. Read your signed receipt here after ${RULES.requests.deadline}.` } : r);
       form.elements.code.value = "";
     });
@@ -107,6 +148,14 @@ export class RequestForm {
       const r = await this.receipt(code);
       this.show(r);
       if (r.ok && r.data?.receipt) this.drawReceipt(r.data.receipt);
+    });
+    this.el("practice-button")?.addEventListener("click", async () => {
+      const values = this.values();
+      if (!values.ok) return this.show({ ok: false, text: values.reason });
+      this.show({ ok: true, text: "Planning a practice night…" });
+      const r = await this.practice(values);
+      this.show(r.ok ? { ok: true, text: `Practice night of ${this.nightRange(r.answer.night)} planned with real prices and three simulated neighbours. Nothing was stored; your real request is still open.` } : r);
+      if (r.ok) await this.drawPractice(r.answer);
     });
     this.el("demo-button")?.addEventListener("click", async () => {
       const out = this.el("demo-result");
@@ -205,7 +254,12 @@ export class RequestForm {
     const [h, m] = readyBy.split(":").map(Number);
     const inNight = (h > 22 || (h === 22 && m > 0)) || h < 7 || (h === 7 && m === 0);
     if (!inNight) return { ok: false, reason: `Ready-by must be between ${RULES.night.from} and ${RULES.night.until}.` };
-    return { ok: true, batteryKwh: e.batteryKwh, energyKwh: e.gridKwh, readyBy, night: tonight(this.now()).night };
+    const priceText = String(this.el("max-price")?.value ?? "").trim().replace(",", ".");
+    const maxPriceCents = priceText === "" ? null : Number(priceText);
+    if (maxPriceCents !== null && !(Number.isFinite(maxPriceCents) && maxPriceCents >= 0 && maxPriceCents <= 100)) {
+      return { ok: false, reason: "A price limit must be a number of cents per kWh between 0 and 100, or empty for none." };
+    }
+    return { ok: true, batteryKwh: e.batteryKwh, energyKwh: e.gridKwh, readyBy, maxPriceCents, night: tonight(this.now()).night };
   }
 
   nightRange(night) {
@@ -219,6 +273,7 @@ export class RequestForm {
     this.setText("dialog-night", this.nightRange(values.night));
     this.setText("dialog-energy", `≈ ${values.energyKwh} kWh from the grid (${values.batteryKwh} kWh into the battery)`);
     this.setText("dialog-ready", values.readyBy);
+    this.setText("dialog-price", values.maxPriceCents === null ? "None" : `Never above ${values.maxPriceCents} c/kWh`);
     return new Promise((resolve) => {
       dialog.addEventListener("close", () => resolve(dialog.returnValue === "send"), { once: true });
       dialog.showModal();
@@ -226,9 +281,12 @@ export class RequestForm {
   }
 
   /** The resident's own quarter-hours across the night, from the signed receipt. */
-  drawReceipt(receipt) {
+  drawReceipt(receipt, { title = "Your signed plan" } = {}) {
     const view = this.el("receipt-view"), strip = this.el("receipt-strip");
     if (!view || !strip) return;
+    this.setText("receipt-title", title);
+    const practice = this.el("practice-view");
+    if (practice && !receipt.practice) practice.hidden = true;
     const start = helsinkiMs(receipt.night, RULES.night.from);
     const mine = new Set((receipt.schedule?.slots ?? []).map((s) => Math.round((Date.parse(s.start) - start) / 900_000)));
     strip.replaceChildren(...Array.from({ length: 36 }, (_, i) => {
@@ -237,7 +295,8 @@ export class RequestForm {
       return cell;
     }));
     const s = receipt.schedule;
-    this.setText("receipt-energy", `${s.delivered_kwh} of ${s.requested_kwh} kWh${s.feasible ? ", fully met" : `, short by ${s.shortfall_kwh} kWh`}`);
+    const cap = s.max_price_cents === undefined ? "" : ` (your limit: ${s.max_price_cents} c/kWh)`;
+    this.setText("receipt-energy", `${s.delivered_kwh} of ${s.requested_kwh} kWh${s.feasible ? ", fully met" : `, short by ${s.shortfall_kwh} kWh`}${cap}`);
     this.setText("receipt-cost", `€${Number(receipt.cost?.total_eur ?? 0).toFixed(2)} incl. the charger fee`);
     this.setText("receipt-signer", new URL(receipt.iss).host);
     view.hidden = false;

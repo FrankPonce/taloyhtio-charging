@@ -16,7 +16,8 @@
     "check:taloyhtio": "node ../vendor/agentify-website/scripts/build_network.mjs sites/taloyhtio/koivurinne_charging.hocon --manifest sites/taloyhtio/agent-manifest.json --check",
     "sign:taloyhtio": "node scripts/sign-network.mjs taloyhtio",
     "dev:taloyhtio": "cd workers/taloyhtio && npx wrangler dev --port 8794",
-    "deploy:taloyhtio": "cd workers/taloyhtio && npx wrangler deploy"
+    "deploy:taloyhtio": "cd workers/taloyhtio && npx wrangler deploy",
+    "sign:sketchy": "node scripts/sign-network.mjs sketchy"
   },
   "dependencies": {
     "agent-trust-kit": "github:FrankPonce/agent-trust-kit"

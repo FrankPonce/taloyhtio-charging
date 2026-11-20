@@ -7,14 +7,15 @@ import {
   KEY_DIRECTORY_PATH, attestationFromScorecard, canonicalHash, keyDirectory, newSiteKey, sha256Hex,
   signAttestation, signNetwork, signRequest, signStatement, ATTESTATION_TYPE, actionsSha256,
 } from "agent-trust-kit";
-import { admit, authorizer, clearAdmissionCache } from "../src/arbiter/admission.js";
+import { MODEL_META, admit, authorizer, clearAdmissionCache } from "../src/arbiter/admission.js";
 import { handleArbiterMcp } from "../src/arbiter/mcp.js";
 import { migratedDb } from "./d1-sqlite.mjs";
 
 const ARBITER = "https://taloyhtio.example";
 const CALLER = "https://charge.example";
 const TESTER = "https://tester.example";
-const POLICY = { testers: [{ origin: TESTER, index: "/attestations/index.json" }], minScore: 80, minCoverage: 80 };
+const POLICY = { testers: [{ origin: TESTER, index: "/attestations/index.json" }], minScore: 80, minCoverage: 80, requireModel: true };
+const MODEL = "alibaba/qwen3.8-flash"; // the model the fixture attestation covers
 const NOW = Date.parse("2026-12-22T10:00:00Z");
 const NETWORK = { tools: [{ name: "charge_assistant", instructions: "Plan charging from real prices.", tools: [] }] };
 const ACTIONS = { version: 1, agentTools: ["plan_charging", "send_night_request"] };
@@ -39,13 +40,13 @@ async function world({ signNet = true, servedNetwork = NETWORK, score = 100, cov
   const iat = expired ? NOW - 40 * 864e5 : NOW - 864e5;
   let file;
   if (legacy) {
-    file = await signStatement({ typ: ATTESTATION_TYPE, iss: TESTER, sub, network_sha256: sha, model: { name: "m" }, results: {}, score, iat: new Date(iat).toISOString(), exp: new Date(iat + 30 * 864e5).toISOString() }, tester.privateJwk);
+    file = await signStatement({ typ: ATTESTATION_TYPE, iss: TESTER, sub, network_sha256: sha, model: { name: "alibaba/qwen3.8-flash" }, results: {}, score, iat: new Date(iat).toISOString(), exp: new Date(iat + 30 * 864e5).toISOString() }, tester.privateJwk);
   } else {
     const card = { target: { network_url: sub, network_sha256: sha, manifest_url: `${CALLER}/agent-manifest.json`, actions_sha256: await actionsSha256({ actions: ACTIONS }) }, model: { name: "alibaba/qwen3.8-flash", routerHost: "eu.api.otari.ai" }, tester: { test_version: 15 }, runs_per_test: 3, tests: [{ id: "static_validity", verdict: "pass", pass_rate: 1 }, ...(failedTest ? [{ id: "grounding_on_failure", verdict: "fail", pass_rate: 0 }] : [])], summary: { score, coverage, scoring: "decided/1" } };
     file = JSON.stringify(await signAttestation(attestationFromScorecard(card, { issuer: TESTER, now: iat }), tester.privateJwk));
   }
   put(`${TESTER}/attestations/x.att`, file);
-  put(`${TESTER}/attestations/index.json`, { attestations: [{ sub, attestation: "attestations/x.att" }] });
+  put(`${TESTER}/attestations/index.json`, { attestations: [{ sub, model: "alibaba/qwen3.8-flash", attestation: "attestations/x.att" }] });
 
   const fetchImpl = async (url) => (files.has(String(url))
     ? new Response(files.get(String(url)), { headers: { "content-type": "application/json" } })
@@ -58,7 +59,7 @@ async function world({ signNet = true, servedNetwork = NETWORK, score = 100, cov
 }
 
 const asPlain = async (req) => ({ method: req.method, url: req.url, headers: Object.fromEntries(req.headers), body: await req.clone().text() });
-const BODY = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" });
+const BODY = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping", params: { _meta: { [MODEL_META]: MODEL } } });
 
 test("admitted: signed request, domain-signed network, fresh attestation for that exact hash", async () => {
   const w = await world();
@@ -117,7 +118,7 @@ test("authorizer: own page passes, unsigned outsiders are refused, signed caller
   assert.equal((await signed(BODY)).ok, true);
   const { results } = await db.prepare("SELECT outcome, caller_origin, caller_network_url, reason FROM admissions").all();
   assert.deepEqual(results.map((r) => [r.outcome, r.caller_origin, r.caller_network_url]), [["admitted", CALLER, `${CALLER}/charge_planner`]]);
-  assert.match(results[0].reason, /attested 100 \(coverage 100\) by https:\/\/tester.example/);
+  assert.match(results[0].reason, /attested 100 \(coverage 100\) on alibaba\/qwen3\.8-flash by https:\/\/tester.example/);
 });
 
 test("end to end: an admitted caller submits; a refused one gets the reason; reads stay open", async () => {
@@ -125,7 +126,7 @@ test("end to end: an admitted caller submits; a refused one gets the reason; rea
   await db.prepare("INSERT INTO residents (id, code_sha256, label, created_at) VALUES ('A1', ?, 'Simulated resident A1', 'x')").bind(await sha256Hex("koivu-test-0001")).run();
   const call = async (w, name, args, opts = {}) => {
     clearAdmissionCache();
-    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } });
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args, _meta: { [MODEL_META]: opts.model ?? MODEL } } });
     const req = opts.unsigned ? new Request(`${ARBITER}/mcp`, { method: "POST", body }) : await w.signed(body);
     const res = await handleArbiterMcp(req.clone(), { ARBITER_DB: db }, { now: NOW, authorize: authorizer(req, { db, policy: POLICY, fetchImpl: w.fetchImpl, now: NOW }) });
     return (await res.json()).result;
@@ -152,4 +153,31 @@ test("refusal reasons end with exactly one full stop", async () => {
   assert.match(d.reason, /[^.]\.$/);
   const sig = await admit({ method: "POST", url: `${ARBITER}/mcp`, headers: { "signature-agent": '"https://nokeys.example"' }, body: BODY }, { policy: POLICY, fetchImpl: w.fetchImpl, now: NOW });
   assert.match(sig.reason, /[^.]\.$/);
+});
+
+test("network × model: the caller must say which model ran its agent, and only that model's attestation counts", async () => {
+  const w = await world();
+  const noModel = await admit(await asPlain(await w.signed(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }))), { policy: POLICY, fetchImpl: w.fetchImpl, now: NOW });
+  assert.equal(noModel.ok, false);
+  assert.equal(noModel.step, "model");
+  assert.match(noModel.reason, /does not say which model ran https:\/\/charge\.example's agent/);
+
+  clearAdmissionCache();
+  const other = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping", params: { _meta: { [MODEL_META]: "mistralai/ministral-3-8b" } } });
+  const weak = await admit(await asPlain(await w.signed(other)), { policy: POLICY, fetchImpl: w.fetchImpl, now: NOW });
+  assert.equal(weak.ok, false);
+  assert.equal(weak.step, "attestation");
+  assert.match(weak.reason, /as published now on mistralai\/ministral-3-8b .*not tested on mistralai\/ministral-3-8b \(tested on alibaba\/qwen3\.8-flash\)/);
+
+  clearAdmissionCache();
+  const ok = await admit(await asPlain(await w.signed(BODY)), { policy: POLICY, fetchImpl: w.fetchImpl, now: NOW });
+  assert.equal(ok.ok, true, ok.reason);
+  assert.equal(ok.model, MODEL);
+  assert.equal(ok.attestation.model, MODEL);
+
+  // The model is inside the signed body: changing it after signing breaks the signature.
+  clearAdmissionCache();
+  const signed = await asPlain(await w.signed(BODY));
+  const swapped = await admit({ ...signed, body: BODY.replace(MODEL, "openai/gpt-oss-20b") }, { policy: POLICY, fetchImpl: w.fetchImpl, now: NOW });
+  assert.equal(swapped.step, "signature");
 });

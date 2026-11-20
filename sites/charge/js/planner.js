@@ -67,9 +67,26 @@ export function planCharging({ energyKwh, chargerKw, fromMs, readyByMs, prices }
       savingsEur: round(baselineCostEur - costEur, 2),
       averagePriceCents: round((costEur * 100) / energyKwh, 2),
       finishesAtMs: Math.max(...planned.map((s) => s.end)),
+      // For chargers that take only one start and stop time: the cheapest unbroken block.
+      continuous: continuousBlock(window, slotsNeeded, energyKwh, perSlotKwh),
       pricesIncludeVat: true,
     },
   };
+}
+
+/**
+ * The cheapest run of n back-to-back slots in the window, as {start, end, costEur}, or null
+ * when the window has gaps (missing prices) everywhere.
+ */
+function continuousBlock(window, n, energyKwh, perSlotKwh) {
+  let best = null;
+  for (let i = 0; i + n <= window.length; i++) {
+    const run = window.slice(i, i + n);
+    if (run.some((s, k) => k > 0 && run[k - 1].end !== s.start)) continue;
+    const costEur = costOf(withEnergy(run, energyKwh, perSlotKwh));
+    if (!best || costEur < best.costEur) best = { start: run[0].start, end: run[n - 1].end, costEur };
+  }
+  return best;
 }
 
 function pickCheapest(window, n) {

@@ -57,6 +57,13 @@ export class AssistantMount {
         ...session,
       });
       AssistantMount.engine = booted.engine;
+      // The housing company checks this network's attestation for the model the assistant
+      // runs on: the visitor's own model if set, else the network's own model_name (the
+      // site's default, served by its Workers AI proxy).
+      Housing.modelSource = () => {
+        const e = AssistantMount.engine;
+        return String(e?.modelOverride || "").trim() || (typeof e?.callerModel === "function" ? e.callerModel() : "") || null;
+      };
       AssistantMount.defaultReview = booted.engine.onActionConfirm;
       booted.engine.onActionConfirm = AssistantMount.review;
       // Peer trust line on the consent card: signed? tested? From this site's own server
@@ -258,6 +265,9 @@ export class AssistantMount {
         "Energy": `${check.energyKwh} kWh`,
         "Ready by": `${check.readyByLabel} (Finnish time)`,
         "Charging power": `up to ${check.chargerKw} kW`,
+        "Price limit": check.maxPriceCents === null
+          ? "none (set one in the Shared chargers box)"
+          : `never above ${check.maxPriceCents} c/kWh, set by you on this page; the assistant can't change it`,
         "Resident code": "saved on this page; the assistant never sees it",
         "Sent to": "As Oy Koivurinne (simulated), through this site's server",
       };

@@ -17,7 +17,28 @@ import { DEFAULT_TRUST_POLICY, cachingFetch, checkNetwork, verifyRequest } from 
 // Tester crash-test, score ≥ 80, coverage ≥ 80, and no test that failed outright: an
 // average can hide a critical failure (Spot Deals averaged 81 while inventing a whole
 // price table, FINDINGS F45). The kit's default trust policy is exactly this.
-export const DEFAULT_POLICY = DEFAULT_TRUST_POLICY;
+// Trust is network × model (FINDINGS F1, F48): a caller's server must say which model ran
+// its agent, and only an attestation for that model counts. The model is the caller's own
+// claim (signed with the body, but nobody can prove which model ran in a visitor's browser);
+// it stops a site from presenting a test on a strong model for a session on a weak one.
+export const DEFAULT_POLICY = { ...DEFAULT_TRUST_POLICY, requireModel: true };
+
+/** Where a caller declares its model: MCP's `_meta` on the signed tools/call. */
+export const MODEL_META = "agent-trust-kit/model";
+
+/**
+ * The model a signed JSON-RPC body declares, or null.
+ *
+ * :param bodyText: The request body as received (covered by the signature's content digest).
+ */
+export function declaredModel(bodyText) {
+  try {
+    const m = JSON.parse(bodyText)?.params?._meta?.[MODEL_META];
+    return typeof m === "string" && m.trim() && m.length <= 200 ? m.trim() : null;
+  } catch {
+    return null;
+  }
+}
 
 const CACHE_MS = 5 * 60_000;
 const cache = new Map(); // fetched public files; per Worker isolate
@@ -46,19 +67,26 @@ export async function admit(request, { policy = DEFAULT_POLICY, fetchImpl = glob
   if (!sig.ok) return refuse("signature", `The request is not signed by a site's published key: ${sig.reason}.`);
   const agent = sig.agent;
 
+  // Which model ran the caller's agent (signed with the body; the caller's claim).
+  const model = declaredModel(request.body);
+  if (!model && policy.requireModel) {
+    return refuse("model", `The request does not say which model ran ${agent}'s agent (params._meta["${MODEL_META}"]). Trust depends on the network and the model, so the arbiter needs both.`, { agent });
+  }
+
   // 2 and 3: the same check a site's consent card uses for its partners (agent-trust-kit
   // checkNetwork): the caller's published network, signed by its own domain, and an
-  // attestation from a trusted tester for exactly that network hash, meeting the policy.
-  const r = await checkNetwork({ origin: agent }, { policy, fetchImpl: cachingFetch(fetchImpl, { cache, ttlMs: CACHE_MS, now: () => now }), now, jwks });
+  // attestation from a trusted tester for exactly that network hash and that model,
+  // meeting the policy.
+  const r = await checkNetwork({ origin: agent }, { policy, fetchImpl: cachingFetch(fetchImpl, { cache, ttlMs: CACHE_MS, now: () => now }), now, jwks, models: model ? [model] : null });
   const { network_url } = r;
   if (r.error) return refuse("network", `${r.error}.`, { agent, network_url });
   if (r.signature.status === "unsigned") return refuse("network", `${network_url} is not signed by its domain (no signature file).`, { agent, network_url });
   if (!r.signature.ok) return refuse("network", `${network_url} is not validly signed by ${agent}: ${r.signature.reason}.`, { agent, network_url });
   const a = r.attestation;
   if (!a.ok) {
-    return refuse("attestation", `No trusted tester vouches for ${network_url} as published now (score ≥ ${policy.minScore}, coverage ≥ ${policy.minCoverage}${policy.noFailedTests !== false ? ", no failed test" : ""}): ${a.reason}.`, { agent, network_url });
+    return refuse("attestation", `No trusted tester vouches for ${network_url} as published now${model ? ` on ${model}` : ""} (score ≥ ${policy.minScore}, coverage ≥ ${policy.minCoverage}${policy.noFailedTests !== false ? ", no failed test" : ""}): ${a.reason}.`, { agent, network_url });
   }
-  return { ok: true, agent, network_url, network_sha256: r.network_sha256, attestation: { iss: a.iss, score: a.score, coverage: a.coverage, model: a.model, exp: a.exp } };
+  return { ok: true, agent, network_url, network_sha256: r.network_sha256, model, attestation: { iss: a.iss, score: a.score, coverage: a.coverage, model: a.model, exp: a.exp } };
 }
 
 /** Record an admission decision (no resident data). */
@@ -68,7 +96,7 @@ export async function logAdmission(db, decision, { now = Date.now(), origin = nu
   ).bind(
     new Date(now).toISOString(), decision.agent ?? origin, decision.network_url ?? null, decision.network_sha256 ?? null,
     decision.ok ? "admitted" : "refused",
-    decision.ok ? `attested ${decision.attestation.score} (coverage ${decision.attestation.coverage}) by ${decision.attestation.iss}` : `${decision.step}: ${decision.reason}`,
+    decision.ok ? `attested ${decision.attestation.score} (coverage ${decision.attestation.coverage}) on ${decision.attestation.model ?? "any model"} by ${decision.attestation.iss}` : `${decision.step}: ${decision.reason}`,
   ).run();
 }
 

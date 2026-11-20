@@ -195,3 +195,16 @@ test("state is plain JSON with today's date and tomorrow's publication note", as
   assert.ok(s.prices.hourlyFromNow.length > 0 && s.prices.hourlyFromNow.length <= 24);
   assert.doesNotThrow(() => JSON.parse(JSON.stringify(s)));
 });
+
+test("a split plan also offers the cheapest single session, and says it needs a schedule", async () => {
+  const { continuousNote } = await import("../sites/charge/js/app.js");
+  // 4 kW: 1 kWh per slot, 2 kWh needed. Cheapest two slots are 0 and 3 (split); the cheapest
+  // back-to-back pair is 0-1 (1 + 6 = 7 c) vs 2-3 (8 + 2) vs 1-2 (6 + 8).
+  const r = planCharging({ energyKwh: 2, chargerKw: 4, fromMs: T0, readyByMs: T0 + 4 * Q, prices: slotsFrom([1, 6, 8, 2]) });
+  assert.equal(r.ok, true);
+  assert.equal(r.plan.windows.length, 2);
+  assert.deepEqual(r.plan.continuous, { start: T0, end: T0 + 2 * Q, costEur: 0.07 });
+  assert.match(continuousNote(r.plan), /2 separate windows, so your car or charger app must take a charging schedule\. One continuous session instead: .*00:00–00:30, €0\.07 \(€0\.04 more\)/);
+  const one = planCharging({ energyKwh: 2, chargerKw: 4, fromMs: T0, readyByMs: T0 + 4 * Q, prices: slotsFrom([1, 2, 8, 9]) });
+  assert.equal(continuousNote(one.plan), null, "one window needs no note");
+});

@@ -136,3 +136,24 @@ test("the confirmation dialog names the night and never shows the resident code"
     Housing.page = before;
   }
 });
+
+test("the price limit is the resident's mandate: set on the page, sent with the request, never from the assistant", async () => {
+  const a = arbiter(() => ok("ok", { request_id: "req_cap", night: "2026-12-22" }));
+  const h = new Housing({ doc: null, fetchImpl: a.fetchImpl, session: store(), local: store() });
+  assert.equal(h.saveCode(CODE, "200").ok, false, "out of range");
+  assert.equal(h.saveCode(CODE, "abc").ok, false, "not a number");
+  assert.equal(h.saveCode(CODE, "7,5").ok, true, "a Finnish decimal comma works");
+  assert.equal(h.maxPrice(), 7.5);
+  // An assistant that tries to pass its own limit (or a higher one) changes nothing.
+  const prepared = h.prepareNightRequest({ energyKwh: 30, readyBy: "2026-12-23T07:00", maxPriceCents: 50, max_price_cents: 50 });
+  assert.equal(prepared.maxPriceCents, 7.5);
+  await h.sendNightRequest({ energyKwh: 30, readyBy: "2026-12-23T07:00", max_price_cents: 50 });
+  assert.equal(a.calls[0].body.arguments.max_price_cents, 7.5);
+  // Saving again without a limit removes it; forgetting the code removes both.
+  h.saveCode(CODE, "");
+  assert.equal(h.maxPrice(), null);
+  assert.equal(h.prepareNightRequest({ energyKwh: 30, readyBy: "2026-12-23T07:00" }).args.max_price_cents, undefined);
+  h.saveCode(CODE, "9");
+  h.forgetCode();
+  assert.equal(h.maxPrice(), null);
+});

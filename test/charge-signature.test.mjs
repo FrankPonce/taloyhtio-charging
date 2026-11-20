@@ -9,6 +9,7 @@ import { verifyNetwork } from "agent-trust-kit";
 const SITES = [
   { dir: "charge", network: "charge_planner", origin: "https://charge.frankmp12357.workers.dev", sign: "sign:network" },
   { dir: "taloyhtio", network: "koivurinne_charging", origin: "https://taloyhtio.frankmp12357.workers.dev", sign: "sign:taloyhtio" },
+  { dir: "sketchy", network: "spot_deals", origin: "https://sketchy.frankmp12357.workers.dev", sign: "sign:sketchy" },
 ];
 
 for (const site of SITES) {
@@ -32,7 +33,8 @@ for (const site of SITES) {
   });
 }
 
-test("the two sites use different keys", async () => {
+test("every site uses its own key", async () => {
   const kids = await Promise.all(SITES.map(async (s) => JSON.parse(await readFile(new URL(`../sites/${s.dir}/.well-known/http-message-signatures-directory`, import.meta.url), "utf8")).keys.map((k) => k.kid)));
-  assert.equal(kids[0].some((k) => kids[1].includes(k)), false);
+  const all = kids.flat();
+  assert.equal(new Set(all).size, all.length);
 });

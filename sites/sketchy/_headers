@@ -5,3 +5,8 @@
 /*
   X-Robots-Tag: noindex
   X-Content-Type-Options: nosniff
+/spot_deals.signature.json
+  Access-Control-Allow-Origin: *
+/.well-known/http-message-signatures-directory
+  Access-Control-Allow-Origin: *
+  Content-Type: application/http-message-signatures-directory+json

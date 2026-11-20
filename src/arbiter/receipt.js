@@ -24,14 +24,17 @@ export function newNonce() {
 /**
  * Commitment hash of a sealed request.
  *
- * :param sealed: {resident, night, energyKwh, chargerKw, fromMs, readyByMs}.
+ * :param sealed: {resident, night, energyKwh, chargerKw, fromMs, readyByMs, maxPriceCents?}.
+ *     maxPriceCents is sealed only when set, so requests without one keep their old commitment.
  * :param nonce: Server nonce (hex), kept with the request.
  * :return: Hex SHA-256.
  */
 export async function commitmentOf(sealed, nonce) {
   if (typeof nonce !== "string" || nonce.length < 32) throw new TypeError("A commitment needs a server nonce of at least 128 bits.");
-  const { resident, night, energyKwh, chargerKw, fromMs, readyByMs } = sealed;
-  return canonicalHash({ resident, night, energyKwh, chargerKw, fromMs, readyByMs, nonce });
+  const { resident, night, energyKwh, chargerKw, fromMs, readyByMs, maxPriceCents } = sealed;
+  const fields = { resident, night, energyKwh, chargerKw, fromMs, readyByMs, nonce };
+  if (maxPriceCents !== undefined && maxPriceCents !== null) fields.maxPriceCents = maxPriceCents;
+  return canonicalHash(fields);
 }
 
 /** SHA-256 of the canonical JSON of the 15-minute prices the schedule used. */
@@ -66,6 +69,7 @@ export function receiptFor({ schedule, requestId, issuer, night, pricesSha256, n
       delivered_kwh: a.deliveredKwh,
       shortfall_kwh: a.shortfallKwh,
       feasible: a.feasible,
+      ...(a.maxPriceCents !== undefined ? { max_price_cents: a.maxPriceCents } : {}),
       slots: a.slots.map((s) => ({ start: new Date(s.start).toISOString(), end: new Date(s.end).toISOString(), kw: s.kw, kwh: s.kwh, price_cents: s.price })),
     },
     cost: { energy_eur: a.energyCostEur, fee_eur: a.feeEur, total_eur: a.totalEur },

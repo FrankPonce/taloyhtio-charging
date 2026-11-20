@@ -12,6 +12,7 @@ import { TraceBus } from "../runtime/trace.js";
 import { StubDocument } from "./stub_document.mjs";
 import { StubOption } from "./stub_option.mjs";
 import { ScriptedModel } from "./scripted_model.mjs";
+import { RULE_VERSION } from "../../../src/arbiter/scheduler.js";
 
 const NETWORK_NAME = "koivurinne_charging";
 const READ_ACTION = "get_charging_rules";
@@ -104,7 +105,10 @@ test("the front agent's fixed facts match the page's rules (partners only see th
   assert.match(fixed, /final request/);
   assert.match(fixed, new RegExp(`signed receipt after ${RULES.requests.deadline}`));
   assert.ok(fixed.includes(`All ${["four", "five", "six"][RULES.chargers.count - 4]} chargers share ${RULES.night.sharedLimitKw} kW`));
-  assert.match(RULES.fairShare[0], /ready earliest is planned first/);
+  assert.match(fixed, /lowest total cost, an earlier ready-by wins only ties/);
+  assert.match(RULES.fairShare[1], /lowest total cost/);
+  assert.match(RULES.fairShare[1], /ready earliest gets the cheaper slots/);
+  assert.equal(RULES.ruleVersion, RULE_VERSION, "the published rules name the scheduler's version");
 });
 
 test("agentTools are registered local-only read actions, named in the instructions", async () => {

@@ -24,7 +24,10 @@ export async function peerTrust(request, env, opts = {}) {
     const entry = manifest?.networks?.[0];
     if (!entry?.name || !entry?.hocon) throw new Error("no network in agent-manifest.json");
     const network = await asset(env, origin, entry.hocon);
-    return await peerTrustResponse(new URL(encodeURIComponent(entry.name), `${origin}/`).href, { network, ...opts });
+    // Trust is network × model: a partner runs here on this site's default model, so only an
+    // attestation for that model counts (PEER_TRUST_MODELS, the tester's name for it).
+    const models = String(env.PEER_TRUST_MODELS || "").split(",").map((m) => m.trim()).filter(Boolean);
+    return await peerTrustResponse(new URL(encodeURIComponent(entry.name), `${origin}/`).href, { network, ...(models.length ? { models } : {}), ...opts });
   } catch (error) {
     console.error("peer trust error", error?.stack || error);
     return new Response(JSON.stringify({ error: "The partner check is unavailable right now." }), {

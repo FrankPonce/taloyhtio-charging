@@ -21,9 +21,11 @@ export const RULES = {
     how: "Residents send one request per night before 18:00 with the energy needed and the ready-by time. A request is final. After 18:00 the scheduler gives each car its own slots and signs a receipt with the plan and cost.",
     where: ["the form on this page", "Charge, whose server signs the request so the scheduler can check it"],
   },
+  ruleVersion: "koivurinne-fair-share/2",
   fairShare: [
-    "The car that must be ready earliest is planned first.",
-    "Each car gets the cheapest slots that still finish before its ready-by time.",
+    "Every car is charged as fully as the 22 kW limit and its charger allow: if all cars can be charged in full, all are.",
+    "Of the plans that do that, the one with the lowest total cost is used. Where costs are equal, the car that must be ready earliest gets the cheaper slots, so claiming an earlier time only wins ties.",
+    "You may set a maximum price: your car never charges in a slot that costs more.",
     "The 22 kW limit is never exceeded.",
     "The same requests always give the same plan, and every plan comes with a signed receipt.",
   ],

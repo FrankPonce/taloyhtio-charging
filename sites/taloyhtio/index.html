@@ -119,13 +119,21 @@
           <input name="readyBy" type="hidden" value="07:00">
         </fieldset>
 
+        <div class="field">
+          <label for="max-price">Price limit, c/kWh incl. VAT <span class="hint">(optional)</span></label>
+          <input id="max-price" name="maxPrice" type="text" inputmode="decimal" autocomplete="off" placeholder="No limit" class="price-input">
+          <p class="hint">Your car never charges in a quarter-hour that costs more. If too few cheap quarter-hours are left, your receipt shows the shortfall.</p>
+        </div>
+
         <div class="form-actions">
           <button type="submit" class="button-primary">Send tonight's request</button>
           <button type="button" id="receipt-button" class="button-secondary">Check my receipt</button>
+          <button type="button" id="practice-button" class="button-plain">Try a practice night now</button>
         </div>
+        <p class="hint practice-note">No need to wait for 18:00: a practice night plans your car with three simulated neighbours on the latest night with published prices, at once, and signs a practice receipt that your browser then checks. No code needed, nothing is stored.</p>
         <p id="request-result" class="form-result" role="status"></p>
         <div id="receipt-view" class="receipt" hidden>
-          <p class="receipt-title">Your signed plan</p>
+          <p id="receipt-title" class="receipt-title">Your signed plan</p>
           <div id="receipt-strip" class="receipt-strip" aria-hidden="true"></div>
           <p class="receipt-axis" aria-hidden="true"><span>22:00</span><span>02:30</span><span>07:00</span></p>
           <dl class="receipt-facts">
@@ -133,6 +141,12 @@
             <div><dt>Cost</dt><dd id="receipt-cost"></dd></div>
             <div><dt>Signed by</dt><dd id="receipt-signer"></dd></div>
           </dl>
+          <div id="practice-view" hidden>
+            <p class="receipt-subtitle">The whole practice night</p>
+            <ul id="practice-cars" class="practice-cars"></ul>
+            <p class="receipt-subtitle">Checked in your browser</p>
+            <ul id="practice-checks" class="practice-checks"></ul>
+          </div>
         </div>
       </form>
       <p class="fine">Your request goes only to this site's scheduler, which signs your receipt. The code is not saved in your browser. Not sure how much to charge? <a href="https://charge.frankmp12357.workers.dev/">Charge</a> plans the cheapest time from spot prices, and its Shared chargers box sends the same request.</p>
@@ -182,6 +196,7 @@
         <dt>Night</dt><dd id="dialog-night"></dd>
         <dt>Energy</dt><dd id="dialog-energy"></dd>
         <dt>Ready by</dt><dd id="dialog-ready"></dd>
+        <dt>Price limit</dt><dd id="dialog-price"></dd>
       </dl>
       <p class="hint">As Oy Koivurinne is simulated; nothing is billed.</p>
       <div class="dialog-actions">

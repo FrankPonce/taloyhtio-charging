@@ -14,7 +14,10 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "vars": {
     "SITE_ORIGIN": "https://charge.frankmp12357.workers.dev",
-    "ARBITER_MCP_URL": "https://taloyhtio.frankmp12357.workers.dev/mcp"
+    "ARBITER_MCP_URL": "https://taloyhtio.frankmp12357.workers.dev/mcp",
+    // The tester's name for this site's default model (@cf/openai/gpt-oss-20b): partners run
+    // on it here, so the consent card shows their attestation for this model.
+    "PEER_TRUST_MODELS": "openai/gpt-oss-20b"
   },
   "assets": {
     "directory": "../../sites/charge",

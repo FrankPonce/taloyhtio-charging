@@ -161,14 +161,85 @@ test("property: no slot outside a request's window; energy adds up; shortfall on
   }
 });
 
-test("property: an earlier request is never affected by later ones", () => {
-  for (const seed of SEEDS.slice(0, 100)) {
-    const { requests, prices, limitKw } = randomNight(seed);
-    const full = scheduleNight({ requests, prices, limitKw });
-    const first = full.assignments[0];
-    const alone = scheduleNight({ requests: requests.filter((x) => x.id === first.id), prices, limitKw });
-    assert.deepEqual(alone.assignments[0].slots, first.slots, `seed ${seed}`);
+// Rule version 1 (earliest deadline first, each car takes its cheapest slots in turn), kept
+// as a reference: version 2 must never deliver less, nor cost more for the same energy.
+function greedyV1({ requests, prices, limitKw }) {
+  const limitW = Math.round(limitKw * 1000);
+  const usedW = new Map();
+  let deliveredWh = 0;
+  let cents = 0;
+  const order = [...requests].sort((a, b) => a.readyByMs - b.readyByMs || (a.commitment < b.commitment ? -1 : 1));
+  for (const r of order) {
+    let left = Math.round(r.energyKwh * 1000);
+    const win = prices
+      .filter((s) => s.start >= r.fromMs && s.end <= r.readyByMs)
+      .sort((a, b) => a.price - b.price || a.start - b.start);
+    for (const s of win) {
+      const wh = Math.min(left, Math.floor(Math.min(Math.round(r.chargerKw * 1000), limitW - (usedW.get(s.start) ?? 0)) / 4));
+      if (wh <= 0) continue;
+      usedW.set(s.start, (usedW.get(s.start) ?? 0) + wh * 4);
+      left -= wh;
+      deliveredWh += wh;
+      cents += (wh / 1000) * s.price;
+    }
   }
+  return { deliveredWh, cents };
+}
+
+const totals = (s) => ({
+  deliveredWh: s.assignments.reduce((t, a) => t + Math.round(a.deliveredKwh * 1000), 0),
+  cents: s.assignments.reduce((t, a) => t + a.slots.reduce((u, x) => u + x.kwh * x.price, 0), 0),
+});
+
+test("rule 2: no avoidable shortfall (version 1 left a car 0.5 kWh short here)", () => {
+  // Three slots, prices rising, 4 kW shared. A: 1 kWh by slot 2 on a 4 kW charger. B: 1.5 kWh
+  // by slot 3 on a 2 kW charger. Version 1 gave A all of slot 1, so B could only get 1 kWh.
+  const prices = nightPrices([1, 2, 3]);
+  const a = req("a", 1, 2, { chargerKw: 4, commitment: hex(1) });
+  const b = req("b", 1.5, 3, { chargerKw: 2, commitment: hex(2) });
+  assert.equal(greedyV1({ requests: [a, b], prices, limitKw: 4 }).deliveredWh, 2000);
+  const s = scheduleNight({ requests: [a, b], prices, limitKw: 4 });
+  assert.deepEqual(s.assignments.map((x) => [x.id, x.feasible]), [["a", true], ["b", true]]);
+  assert.ok(s.load.every((l) => l.kw <= 4));
+});
+
+test("rule 3: at equal total cost, the earlier ready-by gets the cheaper slot", () => {
+  const prices = nightPrices([1, 5]);
+  const early = req("early", 2.75, 2, { commitment: hex(9) });
+  const late = req("late", 2.75, 2, { fromSlots: 0, commitment: hex(1) });
+  late.readyByMs += 1; // a minute later, same window
+  const s = scheduleNight({ requests: [late, early], prices, limitKw: 11 });
+  assert.deepEqual(s.assignments.map((a) => [a.id, a.slots.map((x) => (x.start - T0) / SLOT)]), [["early", [0]], ["late", [1]]]);
+});
+
+test("rule 4: a car never charges above its resident's maximum price", () => {
+  const prices = nightPrices([3, 12, 4, 20]);
+  const s = scheduleNight({ requests: [{ ...req("a", 11, 4), maxPriceCents: 5 }], prices, limitKw: 22 });
+  const a = s.assignments[0];
+  assert.deepEqual(a.slots.map((x) => x.price), [3, 4]);
+  assert.equal(a.deliveredKwh, 5.5);
+  assert.equal(a.shortfallKwh, 5.5);
+  assert.equal(a.maxPriceCents, 5);
+  assert.match(requestProblem({ ...req("b", 5, 4), maxPriceCents: 5000 }), /maximum price/);
+});
+
+test("property: version 2 never delivers less than version 1, nor costs more for the same energy", () => {
+  for (const seed of SEEDS) {
+    const { requests, prices, limitKw } = randomNight(seed);
+    const v1 = greedyV1({ requests, prices, limitKw });
+    const v2 = totals(scheduleNight({ requests, prices, limitKw }));
+    assert.ok(v2.deliveredWh >= v1.deliveredWh, `seed ${seed}: ${v2.deliveredWh} < ${v1.deliveredWh}`);
+    if (v2.deliveredWh === v1.deliveredWh) assert.ok(v2.cents <= v1.cents + 1e-6, `seed ${seed}: costs more`);
+  }
+});
+
+test("a full demo night (50 requests, 36 slots) plans quickly", () => {
+  const prices = nightPrices(Array.from({ length: 36 }, (_, i) => 2 + ((i * 7) % 11) - (i === 20 ? 4 : 0)));
+  const requests = Array.from({ length: 50 }, (_, i) => req(`r${i}`, 5 + (i % 30), 12 + (i % 25), { chargerKw: [3.7, 7.4, 11][i % 3], commitment: hex(1000 + i), fromSlots: i % 6 }));
+  const t = performance.now();
+  scheduleNight({ requests, prices, limitKw: 22 });
+  const ms = performance.now() - t;
+  assert.ok(ms < 500, `${ms.toFixed(0)} ms`);
 });
 
 test("property: same input gives the same output, in any order", () => {

@@ -175,13 +175,14 @@ h3 { font-size: 1.1rem; margin: 0 0 12px; }
 .field { margin: 0; padding: 0; border: 0; min-width: 0; }
 .field > label, .field legend, .field-inline label { display: block; font-weight: 700; font-size: .95rem; margin-bottom: 8px; padding: 0; }
 .field-inline { margin-top: 12px; }
-input[type="password"], input[type="number"], input[type="time"], select {
+input[type="password"], input[type="number"], input[type="time"], input[type="text"], select {
   width: 100%; font: inherit; font-weight: 600; color: var(--ink); background: var(--paper);
   border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; min-height: 46px;
 }
 select { appearance: none; padding-right: 38px; background: var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1.5l6 6 6-6' fill='none' stroke='%2324467a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 14px center; }
 input:hover, select:hover { border-color: var(--building); }
 input[type="password"] { letter-spacing: .12em; }
+.price-input { max-width: 12rem; font-variant-numeric: tabular-nums; }
 
 .battery-gauge { position: relative; height: 54px; margin: 4px 14px 18px 0; background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; overflow: visible; }
 .battery-held, .battery-added { position: absolute; top: 4px; bottom: 4px; left: 4px; transition: width .25s var(--ease), left .25s var(--ease); }
@@ -229,10 +230,20 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .receipt-strip { display: grid; grid-template-columns: repeat(36, 1fr); gap: 2px; align-items: end; height: 30px; }
 .rs-cell { height: 40%; background: var(--line); border-radius: 2px; }
 .rs-cell.is-mine { height: 100%; background: var(--amber); }
-.receipt-axis { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin: 4px 0 12px; }
+.receipt .receipt-axis { max-width: none; display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin: 4px 0 12px; }
 .receipt-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 20px; margin: 0; }
 .receipt-facts dt { font-size: .82rem; color: var(--muted); font-weight: 600; }
 .receipt-facts dd { margin: 2px 0 0; font-weight: 700; overflow-wrap: anywhere; }
+.practice-note { grid-column: 1 / -1; margin: -4px 0 0; max-width: 60ch; }
+.receipt-subtitle { font-weight: 800; font-size: .92rem; margin: 18px 0 6px; padding-top: 14px; border-top: 1px solid var(--line); }
+.practice-cars { list-style: none; margin: 0; padding: 0; font-variant-numeric: tabular-nums; }
+.practice-cars li { padding: 3px 0; }
+.practice-checks { list-style: none; margin: 0; padding: 0; }
+.practice-checks li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; padding: 6px 0; }
+/* Drawn marks, no glyphs: a tick for a check that holds, a bar in a ring for one that does not. */
+.practice-checks li::before { content: ""; width: 11px; height: 6px; margin: 6px 0 0 3px; border-left: 2.5px solid var(--dusk); border-bottom: 2.5px solid var(--dusk); transform: rotate(-45deg); }
+.practice-checks li.is-bad::before { width: 12px; height: 12px; margin: 4px 0 0 1px; border: 2px solid var(--error); border-radius: 50%; transform: none; background: linear-gradient(135deg, transparent 44%, var(--error) 44% 56%, transparent 56%); }
+.practice-checks li.is-bad { color: var(--error); }
 
 /* ---- rules ------------------------------------------------------------------------ */
 /* The sharing rules as hairline rows: the scheduler's two steps are numbered in the order it

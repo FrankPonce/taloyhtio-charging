@@ -1,6 +1,6 @@
 // Charge's server-side link to the housing company's arbiter (M5b).
 //
-//   POST /api/arbiter   {tool, arguments}  ->  the arbiter's JSON-RPC result
+//   POST /api/arbiter   {tool, arguments, model}  ->  the arbiter's JSON-RPC result
 //
 // The visitor's browser never holds a key. This Worker signs each call with HTTP Message
 // Signatures (RFC 9421; agent-trust-kit signRequest) as this site's origin, so the arbiter
@@ -15,6 +15,21 @@ import { signRequest } from "agent-trust-kit/http";
 export const ARBITER_TOOLS = ["get_rules", "submit_charging_request", "get_receipt", "get_night_load"];
 const MAX_BODY = 8 * 1024;
 
+// Trust is network × model: the page says which model its assistant ran on, and the signed
+// call carries it in MCP's _meta, so the arbiter checks the attestation for that model.
+// This site's default models have Workers AI names; testers name them as model providers do.
+export const MODEL_META = "agent-trust-kit/model";
+export const MODEL_NAMES = {
+  "@cf/openai/gpt-oss-20b": "openai/gpt-oss-20b",
+  "@cf/zai-org/glm-4.7-flash": "z-ai/glm-4.7-flash",
+};
+
+/** The model name the arbiter should check, or null when the page gave none. */
+export function testerModelName(model) {
+  if (typeof model !== "string" || !model.trim() || model.length > 200) return null;
+  return MODEL_NAMES[model.trim()] ?? model.trim();
+}
+
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 const fail = (status, message) => json(status, { error: { message, type: "arbiter_proxy_error" } });
 
@@ -27,8 +42,15 @@ const fail = (status, message) => json(status, { error: { message, type: "arbite
  * :return: The HTTP response: {result} or {error}.
  */
 export async function arbiterProxy(request, env, { fetchImpl = globalThis.fetch, limited = async () => false } = {}) {
+  // A browser always sends Origin on POST, and Sec-Fetch-Site when it supports it. A request
+  // without them is not from this site's page. A scripted client can forge both headers, so
+  // this is browser hardening, not authentication: the resident code is what authorizes a
+  // request, and the arbiter checks it.
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return fail(403, "Only this site's own page can reach the housing company's arbiter through it.");
+  const site = request.headers.get("sec-fetch-site");
+  if (origin !== new URL(request.url).origin || (site && site !== "same-origin")) {
+    return fail(403, "Only this site's own page can reach the housing company's arbiter through it.");
+  }
   if (await limited(`ip:${request.headers.get("cf-connecting-ip") || "local"}`)) return fail(429, "Too many requests to the housing company. Wait a minute.");
   let key;
   try {
@@ -50,7 +72,9 @@ export async function arbiterProxy(request, env, { fetchImpl = globalThis.fetch,
   const args = call.arguments ?? {};
   if (typeof args !== "object" || Array.isArray(args)) return fail(400, "arguments must be an object.");
 
-  const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: call.tool, arguments: args } });
+  const model = testerModelName(call.model);
+  const params = { name: call.tool, arguments: args, ...(model ? { _meta: { [MODEL_META]: model } } : {}) };
+  const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params });
   const signed = await signRequest(
     { method: "POST", url: env.ARBITER_MCP_URL, headers: { "content-type": "application/json", accept: "application/json" }, body },
     { privateJwk: key, signatureAgent: env.SITE_ORIGIN },

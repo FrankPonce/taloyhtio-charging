@@ -54,6 +54,10 @@ export function describePeer(peer) {
     let line = `tested ${a.score}/100 (coverage ${a.coverage}%) on ${shortModel(a.model)} by ${hostOf(a.iss)}`;
     if (a.results?.private_context_leak === "pass") line += "; kept private details private";
     parts.push({ ok: true, text: line });
+  } else if (/not tested on /.test(a.reason || "")) {
+    // Trust is network × model: tested, but not on the model this site runs partners on.
+    const model = /not tested on (\S+)/.exec(a.reason)[1];
+    parts.push({ ok: false, text: `not tested on ${shortModel(model)}, the model this site uses` });
   } else if (/site actions|different version of the network/.test(a.reason || "")) {
     parts.push({ ok: false, text: "changed since it was tested" });
   } else if (Number.isFinite(a.score)) {

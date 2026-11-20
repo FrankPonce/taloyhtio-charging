@@ -33,14 +33,22 @@ Both share one design system, [DESIGN.md](DESIGN.md) ("Kaamos blue hour").
 
 - **Admission** (`admission.js`): a cross-site caller must sign its request with RFC 9421
   using a key its domain publishes, publish a network signed by that domain, and have an
-  unexpired attestation for exactly that network and its actions from a trusted tester
-  (score ≥ 80, coverage ≥ 80, no test failed outright). This is agent-trust-kit's
-  `checkNetwork`, the same check behind each consent card's trust line. Every decision is
-  logged; each refusal names the step that failed.
-- **Scheduling** (`scheduler.js`, rule `koivurinne-fair-share/1`): earliest ready-by first,
-  ties broken by a commitment the resident can't choose, then the cheapest 15-minute slots
-  that still finish in time, never over the shared limit. Plain code in integer W and Wh;
-  property-tested. No model ever holds a price, a schedule or authority.
+  unexpired attestation for exactly that network, its actions and **the model it declares it
+  ran on** (signed into the request) from a trusted tester (score ≥ 80, coverage ≥ 80, no
+  test failed outright). This is agent-trust-kit's `checkNetwork`, the same check behind each
+  consent card's trust line. Every decision is logged; each refusal names the step that
+  failed. Admission is not authorization: the resident's code, their price limit and the
+  published rules decide what an admitted request may do.
+- **Scheduling** (`scheduler.js`, rule `koivurinne-fair-share/2`): a minimum-cost maximum
+  flow. The night delivers as much energy as the shared limit and the chargers allow (if every
+  car can be charged in full, every car is), at the lowest total cost; where costs are equal,
+  the earlier ready-by gets the cheaper slots, then a commitment the resident can't choose.
+  A resident's **maximum price** is never crossed. Plain code in integer W and Wh;
+  property-tested against the earlier one-car-at-a-time rule. No model ever holds a price, a
+  schedule or authority.
+- **Practice night** (`practice.js`, `POST /api/practice-night`): your car and three simulated
+  neighbours planned at once on real prices, a receipt signed and marked practice, nothing
+  stored; the page re-runs the same scheduler in your browser and checks the signature.
 - **Receipts** (`receipt.js`): each resident gets a signed receipt (plan, cost, price
   snapshot hash, rule version) that anyone can verify with the site's published keys. Nights
   and receipts are append-only in D1.

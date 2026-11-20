@@ -35,6 +35,9 @@ test("forwards one tool call, signed as this site (RFC 9421), and returns the re
 test("refuses other origins, unknown tools, a missing key; passes on the arbiter's refusal", async () => {
   const never = async () => { throw new Error("must not be called"); };
   assert.equal((await arbiterProxy(page({ tool: "get_rules" }, { origin: "https://evil.example" }), ENV, { fetchImpl: never })).status, 403);
+  // No Origin (curl, a server) and cross-site fetch metadata are refused too.
+  assert.equal((await arbiterProxy(page({ tool: "get_rules" }, {}), ENV, { fetchImpl: never })).status, 403);
+  assert.equal((await arbiterProxy(page({ tool: "get_rules" }, { origin: SITE, "sec-fetch-site": "cross-site" }), ENV, { fetchImpl: never })).status, 403);
   assert.equal((await arbiterProxy(page({ tool: "drop_tables" }), ENV, { fetchImpl: never })).status, 400);
   assert.equal((await arbiterProxy(page({ tool: "get_rules" }), { ...ENV, REQUEST_SIGNING_JWK: "" }, { fetchImpl: never })).status, 503);
   assert.equal((await arbiterProxy(page({ tool: "get_rules" }), ENV, { fetchImpl: never, limited: async () => true })).status, 429);
@@ -42,6 +45,21 @@ test("refuses other origins, unknown tools, a missing key; passes on the arbiter
   const r = await arbiterProxy(page({ tool: "get_rules", arguments: { admin: true } }), ENV, { fetchImpl: refused });
   assert.equal(r.status, 502);
   assert.match((await r.json()).error.message, /refused the call: Unknown argument/);
+});
+
+test("the model the page ran on goes into the signed body, in tester naming", async () => {
+  let seen;
+  const fetchImpl = async (url, init) => {
+    seen = { method: init.method, url, headers: init.headers, body: init.body };
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { content: [{ type: "text", text: "ok" }] } }));
+  };
+  await arbiterProxy(page({ tool: "get_rules", arguments: {}, model: "@cf/zai-org/glm-4.7-flash" }), ENV, { fetchImpl });
+  assert.deepEqual(JSON.parse(seen.body).params._meta, { "agent-trust-kit/model": "z-ai/glm-4.7-flash" });
+  assert.equal((await verifyRequest(seen, { jwks: await keyDirectory([publicJwk]) })).ok, true, "the model is covered by the signature");
+  await arbiterProxy(page({ tool: "get_rules", arguments: {}, model: "deepseek/deepseek-v4.1-flash" }), ENV, { fetchImpl });
+  assert.equal(JSON.parse(seen.body).params._meta["agent-trust-kit/model"], "deepseek/deepseek-v4.1-flash", "a visitor's own model passes as named");
+  await arbiterProxy(page({ tool: "get_rules", arguments: {} }), ENV, { fetchImpl });
+  assert.equal(JSON.parse(seen.body).params._meta, undefined, "no model: none is claimed (the arbiter then refuses)");
 });
 
 test("the route exists only where ARBITER_MCP_URL is set (not on the housing site)", async () => {

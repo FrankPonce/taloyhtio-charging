@@ -124,6 +124,7 @@ export async function submitRequest(db, input, { now = Date.now(), callerNetwork
   const chargerKw = input.chargerKw ?? RULES.chargers.kwEach;
   if (!(chargerKw <= RULES.chargers.kwEach)) throw new ArbiterError(`The chargers deliver at most ${RULES.chargers.kwEach} kW.`, "bad_charger");
   const sealed = { resident, night, energyKwh: input.energyKwh, chargerKw, fromMs: terms.fromMs, readyByMs: readyByOf(night, input.readyBy) };
+  if (input.maxPriceCents !== undefined && input.maxPriceCents !== null) sealed.maxPriceCents = input.maxPriceCents;
   const nonce = newNonce();
   const commitment = await commitmentOf(sealed, nonce);
   const id = randomId("req");
@@ -131,9 +132,9 @@ export async function submitRequest(db, input, { now = Date.now(), callerNetwork
   if (problem) throw new ArbiterError(problem, "bad_request");
   try {
     await db.prepare(
-      `INSERT INTO requests (id, night, resident, energy_kwh, charger_kw, from_ms, ready_by_ms, nonce, commitment, caller_network_sha256, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(id, night, resident, sealed.energyKwh, chargerKw, sealed.fromMs, sealed.readyByMs, nonce, commitment, callerNetworkSha256, new Date(now).toISOString()).run();
+      `INSERT INTO requests (id, night, resident, energy_kwh, charger_kw, from_ms, ready_by_ms, max_price_cents, nonce, commitment, caller_network_sha256, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(id, night, resident, sealed.energyKwh, chargerKw, sealed.fromMs, sealed.readyByMs, sealed.maxPriceCents ?? null, nonce, commitment, callerNetworkSha256, new Date(now).toISOString()).run();
   } catch (error) {
     if (/UNIQUE/i.test(String(error?.message))) throw new ArbiterError(`You already sent a request for the night of ${night}. One request per night.`, "duplicate");
     throw error;
@@ -176,7 +177,10 @@ export async function scheduleIfDue(db, night, { now = Date.now(), prices = null
 
   const used = prices ?? (await nightPrices(night, { fetchImpl }));
   const { results: rows } = await db.prepare("SELECT * FROM requests WHERE night = ? ORDER BY id").bind(night).all();
-  const requests = rows.map((r) => ({ id: r.id, commitment: r.commitment, energyKwh: r.energy_kwh, chargerKw: r.charger_kw, fromMs: r.from_ms, readyByMs: r.ready_by_ms }));
+  const requests = rows.map((r) => ({
+    id: r.id, commitment: r.commitment, energyKwh: r.energy_kwh, chargerKw: r.charger_kw, fromMs: r.from_ms, readyByMs: r.ready_by_ms,
+    ...(r.max_price_cents === null || r.max_price_cents === undefined ? {} : { maxPriceCents: r.max_price_cents }),
+  }));
   const schedule = scheduleNight({ requests, prices: used, limitKw: terms.limitKw, feeCentsPerKwh: terms.feeCentsPerKwh });
   const pricesSha256 = await pricesSnapshotHash(used);
   const at = new Date(now).toISOString();
@@ -246,6 +250,25 @@ export async function nightLoad(db, night, opts = {}) {
   }
   const { results } = await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE night = ?").bind(night).all();
   return { night, scheduled: true, limit_kw: row.limit_kw, rule_version: row.rule_version, requests: results[0].n, load: JSON.parse(row.load_json) };
+}
+
+/**
+ * Plan tonight right after requests close, so receipts are ready without anyone asking first
+ * (called by a timer a few minutes after 18:00 Finnish time). Before the deadline, with no
+ * requests, or once planned, it does nothing; the first receipt lookup still plans the
+ * night if the timer didn't run.
+ *
+ * :param opts: as scheduleIfDue (now, prices, fetchImpl, privateJwk, issuer).
+ * :return: {night, planned: true, created} or {night, planned: false, why}.
+ */
+export async function planClosedNight(db, opts = {}) {
+  const now = opts.now ?? Date.now();
+  const night = helsinkiDate(now);
+  if (now < nightTerms(night).deadlineMs) return { night, planned: false, why: "requests are still open" };
+  const { results } = await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE night = ?").bind(night).all();
+  if (!results[0].n) return { night, planned: false, why: "no requests" };
+  const r = await scheduleIfDue(db, night, { ...opts, now });
+  return { night, planned: true, created: !!r.created };
 }
 
 /** The published rules, for agents and pages. */

@@ -107,6 +107,7 @@
         <p id="plan-echo" class="plan-echo"></p>
         <h4>Charge during</h4>
         <ul id="plan-windows" class="windows"></ul>
+        <p id="plan-continuous" class="fine" hidden></p>
         <p class="summary"><span id="plan-flat" hidden>Prices are fairly flat before then. </span>Charging right away would cost <span id="plan-now"></span>, so this timing saves <span id="plan-savings"></span>.</p>
         <p class="fine">Energy cost only, at spot prices including VAT. Grid transfer fees and your seller's margin are not included. <a href="#prices">See the plan on the price chart</a>.</p>
       </div>
@@ -133,7 +134,7 @@
     <section id="assistant" class="assistant card" aria-labelledby="assistant-heading">
       <h2 id="assistant-heading">Ask Charge</h2>
       <p>Ask in plain words, like “I need 30 kWh by 7 tomorrow”. The assistant reads this page's prices and plans for you.</p>
-      <p class="assistant-note">By default your messages and this page's data go to Cloudflare Workers AI through this site, with no account needed. You can choose your own AI provider in the settings below instead. Nothing here can be undone without asking you first.</p>
+      <p class="assistant-note">By default your messages and this page's data go to Cloudflare Workers AI through this site, with no account needed. You can choose your own AI provider in the settings below instead. Nothing irreversible happens without asking you first.</p>
       <p id="assistant-status" role="status">Connecting the assistant… If this message stays, the assistant could not load. You can still use the page directly.</p>
       <div id="agent-app">
         <div data-ns-slot="header"></div>
@@ -155,10 +156,13 @@
       <form id="housing-form" class="housing-form" autocomplete="off">
         <label for="resident-code">Resident code from the board</label>
         <input id="resident-code" name="residentCode" type="password" autocomplete="off" spellcheck="false" placeholder="koivu-…">
+        <label for="max-price">Price limit, c/kWh incl. VAT <span class="hint">(optional: your car never charges above it)</span></label>
+        <input id="max-price" name="maxPrice" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 8" class="price-input">
         <button type="submit">Save for this tab</button>
         <button type="button" id="housing-forget" hidden>Forget</button>
       </form>
-      <p class="fine"><span id="housing-code-state">No resident code saved.</span> It stays on this page and is sent only to the housing company through this site's server; the assistant never sees it. No code? Get a simulated one-night <a href="https://taloyhtio.frankmp12357.workers.dev/#request">demo resident code</a> on the housing company's page.</p>
+      <p class="fine"><span id="housing-code-state">No resident code saved.</span> It stays on this page and is sent only to the housing company through this site's server; the assistant never sees it. Your price limit stays here too: the assistant can't set or change it, and the housing company's scheduler enforces it. No code? Get a simulated one-night <a href="https://taloyhtio.frankmp12357.workers.dev/#request">demo resident code</a> on the housing company's page.</p>
+      <p class="fine">No time to wait for 18:00? <a href="https://taloyhtio.frankmp12357.workers.dev/#request">Try a practice night</a>: it plans your car at once with simulated neighbours, and your browser checks the signed result. Why the housing company lets this site's assistant in, and refuses others: <a href="https://crashtest.frankmp12357.workers.dev/health">live checks</a>.</p>
       <ul id="housing-requests" class="plain"></ul>
       <button type="button" id="housing-receipt" hidden>Check my latest receipt</button>
       <p id="housing-status" role="status" class="summary"></p>

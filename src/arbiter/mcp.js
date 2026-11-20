@@ -43,6 +43,7 @@ export const TOOLS = [
         energy_kwh: num("Energy needed, in kWh (1-120)."),
         ready_by: str('When the car must be ready, Helsinki time, HH:MM between 22:15 and 07:00, e.g. "07:00".'),
         charger_kw: num("Optional: the car's charging power in kW, at most 11 (default 11)."),
+        max_price_cents: num("Optional: the resident's maximum price in c/kWh incl. VAT. The car never charges in a slot that costs more. Only the resident sets it; never choose one for them."),
         night: str("Optional: the evening the night starts, YYYY-MM-DD. Default: the night open for requests now."),
       },
       required: ["resident_code", "energy_kwh", "ready_by"],
@@ -211,8 +212,10 @@ const HANDLERS = {
     const caller = await admitted(ctx);
     const r = await submitRequest(db(env), {
       residentCode: args.resident_code, energyKwh: args.energy_kwh, readyBy: args.ready_by, chargerKw: args.charger_kw, night: args.night,
+      maxPriceCents: args.max_price_cents,
     }, { now: ctx.now ?? Date.now(), callerNetworkSha256: caller.network_sha256 ?? null });
-    const text = `Request received for the night of ${r.night}: ${args.energy_kwh} kWh by ${args.ready_by}. Request ID ${r.request_id}. `
+    const cap = args.max_price_cents === undefined || args.max_price_cents === null ? "" : `, never above ${args.max_price_cents} c/kWh`;
+    const text = `Request received for the night of ${r.night}: ${args.energy_kwh} kWh by ${args.ready_by}${cap}. Request ID ${r.request_id}. `
       + `Commitment ${r.commitment.slice(0, 16)}… (proof of exactly what was asked). The night is planned after ${hhmm(r.requests_close_at)}; then get_receipt returns the signed plan and cost.`;
     return toolResult(text, r);
   },
@@ -224,7 +227,7 @@ const HANDLERS = {
     const s = r.receipt.schedule;
     const windows = s.slots.length ? `${hhmm(s.slots[0].start)}–${hhmm(s.slots.at(-1).end)} (${s.slots.length} slots of 15 min)` : "no slots";
     const text = `Plan for the night of ${r.night}: ${s.delivered_kwh} of ${s.requested_kwh} kWh, ${windows}. `
-      + `${s.feasible ? "Fully met." : `Short by ${s.shortfall_kwh} kWh: the shared limit was full before your ready-by time.`} `
+      + `${s.feasible ? "Fully met." : `Short by ${s.shortfall_kwh} kWh: ${s.max_price_cents === undefined ? "the shared limit was full before your ready-by time" : `not enough room in slots at or below your ${s.max_price_cents} c/kWh limit before your ready-by time`}.`} `
       + `Cost ${eur(r.receipt.cost.total_eur)} (energy ${eur(r.receipt.cost.energy_eur)} + fee ${eur(r.receipt.cost.fee_eur)}). `
       + `Signed by ${r.receipt.iss}; anyone can verify it with the site's published keys.`;
     return toolResult(text, r);

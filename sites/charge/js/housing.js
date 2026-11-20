@@ -9,6 +9,10 @@
 import { addDays, fromHelsinkiLocal, helsinkiClock, longLabel, weekdayLabel } from "./time.js";
 
 const CODE_KEY = "charge.housing.code";
+// The resident's price limit (c/kWh incl. VAT) is their mandate: like the code it lives only
+// on this page, the assistant never sees or sets it, and the arbiter enforces it.
+const PRICE_KEY = "charge.housing.maxPrice";
+const PRICE_RANGE = { min: 0, max: 100 };
 const SENT_KEY = "charge.housing.requests";
 const MAX_KW = 11; // the housing company's chargers
 
@@ -38,16 +42,40 @@ export class Housing {
     }
   }
 
-  saveCode(code) {
+  /** The resident's price limit in c/kWh, or null for none. */
+  maxPrice() {
+    try {
+      const v = this.session?.getItem(PRICE_KEY);
+      return v === null || v === undefined || v === "" ? null : Number(v);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Save the resident code and an optional price limit for this tab.
+   *
+   * :param code: The resident code.
+   * :param maxPrice: Optional c/kWh limit (string or number); empty means none.
+   */
+  saveCode(code, maxPrice = "") {
     const clean = String(code ?? "").trim();
     if (clean.length < 6) return { ok: false, reason: "Enter the resident code the board gave you." };
+    const text = String(maxPrice ?? "").trim().replace(",", ".");
+    const price = text === "" ? null : Number(text);
+    if (price !== null && !(Number.isFinite(price) && price >= PRICE_RANGE.min && price <= PRICE_RANGE.max)) {
+      return { ok: false, reason: `A price limit must be a number of cents per kWh between ${PRICE_RANGE.min} and ${PRICE_RANGE.max}, or empty for none.` };
+    }
     this.session?.setItem(CODE_KEY, clean);
+    if (price === null) this.session?.removeItem(PRICE_KEY);
+    else this.session?.setItem(PRICE_KEY, String(price));
     this.render();
     return { ok: true };
   }
 
   forgetCode() {
     this.session?.removeItem(CODE_KEY);
+    this.session?.removeItem(PRICE_KEY);
     this.render();
   }
 
@@ -66,11 +94,24 @@ export class Housing {
 
   // ---- calls through this site's server ----------------------------------------
 
+  /**
+   * The model this page's assistant runs on, set by site.js at startup: the site's default
+   * model, or the one in the visitor's own AI settings. The housing company checks that this
+   * network was tested on it (trust is network × model).
+   */
+  static modelSource = () => null;
+
   async call(tool, args) {
+    let model = null;
+    try {
+      model = (await Housing.modelSource()) || null;
+    } catch {
+      model = null;
+    }
     const resp = await this.fetchImpl("/api/arbiter", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ tool, arguments: args }),
+      body: JSON.stringify({ tool, arguments: args, ...(model ? { model } : {}) }),
     });
     const body = await resp.json().catch(() => null);
     if (!body || body.error) return { ok: false, reason: body?.error?.message || `The housing company could not be reached (HTTP ${resp.status}).` };
@@ -98,11 +139,15 @@ export class Housing {
     const args = { resident_code: this.code(), energy_kwh: Number(energyKwh), ready_by: clock, night };
     const kw = chargerKw === undefined ? MAX_KW : Math.min(Number(chargerKw), MAX_KW);
     if (chargerKw !== undefined) args.charger_kw = kw;
+    // The price limit comes from the page, never from the assistant's arguments.
+    const maxPriceCents = this.maxPrice();
+    if (maxPriceCents !== null) args.max_price_cents = maxPriceCents;
     const nightStart = fromHelsinkiLocal(`${night}T22:15`);
     return {
       ok: true,
       args,
       night,
+      maxPriceCents,
       nightLabel: `${weekdayLabel(nightStart)} → ${weekdayLabel(fromHelsinkiLocal(`${addDays(night, 1)}T07:00`))}`,
       readyByLabel: longLabel(ms),
       energyKwh: Number(energyKwh),
@@ -161,9 +206,10 @@ export class Housing {
     d?.getElementById("housing-form")?.addEventListener("submit", (event) => {
       event.preventDefault();
       const input = d.getElementById("resident-code");
-      const r = this.saveCode(input?.value);
-      if (input) input.value = "";
-      this.status(r.ok ? "Saved for this tab. The assistant never sees it. Next: ask the assistant to send tonight's request, for example “send my request: 30 kWh by 7”." : r.reason);
+      const price = d.getElementById("max-price");
+      const r = this.saveCode(input?.value, price?.value);
+      if (r.ok && input) input.value = "";
+      this.status(r.ok ? "Saved for this tab. The assistant never sees either. Next: ask the assistant to send tonight's request, for example “send my request: 30 kWh by 7”." : r.reason);
     });
     d?.getElementById("housing-forget")?.addEventListener("click", () => {
       this.forgetCode();
@@ -187,7 +233,8 @@ export class Housing {
     if (!d) return;
     const has = this.hasCode();
     const codeState = d.getElementById("housing-code-state");
-    if (codeState) codeState.textContent = has ? "Resident code saved for this tab." : "No resident code saved.";
+    const cap = this.maxPrice();
+    if (codeState) codeState.textContent = has ? `Resident code saved for this tab${cap === null ? ", no price limit" : `, price limit ${cap} c/kWh`}.` : "No resident code saved.";
     const forget = d.getElementById("housing-forget");
     if (forget) forget.hidden = !has;
     const list = d.getElementById("housing-requests");

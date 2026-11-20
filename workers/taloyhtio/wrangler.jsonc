@@ -30,7 +30,13 @@
     { "name": "LLM_LIMIT", "namespace_id": "3002", "simple": { "limit": 30, "period": 60 } },
     { "name": "LLM_IP_LIMIT", "namespace_id": "3003", "simple": { "limit": 60, "period": 60 } },
     { "name": "MCP_LIMIT", "namespace_id": "3004", "simple": { "limit": 60, "period": 60 } },
-    { "name": "DEMO_LIMIT", "namespace_id": "3005", "simple": { "limit": 3, "period": 60 } }
+    { "name": "DEMO_LIMIT", "namespace_id": "3005", "simple": { "limit": 3, "period": 60 } },
+    { "name": "PRACTICE_LIMIT", "namespace_id": "3006", "simple": { "limit": 10, "period": 60 } }
   ],
+  // A few minutes after 18:00 Finnish time (EET 16:05 UTC, EEST 15:05 UTC): plan tonight.
+  "triggers": { "crons": ["5 15 * * *", "5 16 * * *"] },
+  // PEER_TRUST_MODELS: the tester's name for this site's default model (@cf/openai/gpt-oss-20b);
+  // the consent card shows partners' attestations for the model they actually run on here.
+  "vars": { "ARBITER_ORIGIN": "https://taloyhtio.frankmp12357.workers.dev", "PEER_TRUST_MODELS": "openai/gpt-oss-20b" },
   "observability": { "enabled": true }
 }

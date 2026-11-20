@@ -20,6 +20,15 @@
         ],
         "createdAt": "2026-11-19T10:06:47.855Z",
         "reason": "assistant verified 19 Nov: .panel padding is clamp(20px,3.4vw,36px), rendered captures at 390 and 1440 show 20-36px insets; static engine can't resolve clamp() (same as Charge's exception)"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "sites/taloyhtio/index.html"
+        ],
+        "createdAt": "2026-11-20T01:30:25.231Z",
+        "reason": "Claude, evidence: styles.css sets the hero figure at clamp(3rem,5.6vw,6rem) and h2 at clamp(1.4rem,3vw,1.75rem) over 1rem body (>=1.4x per step, DESIGN.md Koivurinne typography); the detector does not resolve clamp() sizes"
       }
     ]
   }
