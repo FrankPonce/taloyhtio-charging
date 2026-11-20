@@ -9,7 +9,7 @@
 // housing site's own page (same origin) is the housing company itself and skips the check.
 // The resident code is checked after this, by the service: admission is not authorization.
 
-import { DEFAULT_ADMIT_POLICY, admit as kitAdmit, cachingFetch } from "agent-trust-kit";
+import { DEFAULT_ADMIT_POLICY, admit as kitAdmit, cachingFetch, canonicalHash } from "agent-trust-kit";
 
 export { MODEL_META, declaredModel } from "agent-trust-kit";
 export const DEFAULT_POLICY = DEFAULT_ADMIT_POLICY;
@@ -32,8 +32,10 @@ const refuse = (step, reason, extra = {}) => ({ ok: false, step, reason, ...extr
  * :param opts: {policy, fetchImpl, now, jwks (tests: the caller's key directory)}.
  * :return: admit()'s decision.
  */
-export function admit(request, { policy = DEFAULT_POLICY, fetchImpl = globalThis.fetch, now = Date.now(), jwks = null } = {}) {
-  return kitAdmit(request, { policy, now, jwks, fetchImpl: cachingFetch(fetchImpl, { cache, ttlMs: CACHE_MS, now: () => now }) });
+export async function admit(request, { policy = DEFAULT_POLICY, fetchImpl = globalThis.fetch, now = Date.now(), jwks = null } = {}) {
+  const d = await kitAdmit(request, { policy, now, jwks, fetchImpl: cachingFetch(fetchImpl, { cache, ttlMs: CACHE_MS, now: () => now }) });
+  // The digest of the policy applied, so a receipt can name exactly which rules admitted the caller.
+  return d.ok ? { ...d, policy_sha256: await canonicalHash(policy) } : d;
 }
 
 /** Record an admission decision (no resident data). */

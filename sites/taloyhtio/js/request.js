@@ -109,7 +109,7 @@ export class RequestForm {
     return {
       ok: true,
       code: body.code,
-      text: `Demo code filled in: simulated resident ${body.resident}, night of ${body.night}. Keep it to read your receipt after 18:00.`,
+      text: `Demo code filled in: simulated resident ${body.resident}, night of ${body.night}. Keep it to read your receipt after 18:00. Other sites' assistants may ask for at most ${body.mandate?.max_energy_kwh ?? 40} kWh for you; change it under "Limits for other sites' assistants".`,
     };
   }
 
@@ -157,13 +157,35 @@ export class RequestForm {
       this.show(r.ok ? { ok: true, text: `Practice night of ${this.nightRange(r.answer.night)} planned with real prices and three simulated neighbours. Nothing was stored; your real request is still open.` } : r);
       if (r.ok) await this.drawPractice(r.answer);
     });
+    // The resident's limits for other sites' assistants (the mandate), set only here.
+    const mandateForm = this.el("mandate-form");
+    const mandateShow = (r) => {
+      const out = this.el("mandate-result");
+      if (!out) return;
+      out.className = r.ok ? "form-result" : "form-error";
+      out.textContent = r.text;
+    };
+    mandateForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const priceText = String(this.el("mandate-price")?.value ?? "").trim().replace(",", ".");
+      const args = { resident_code: String(this.el("mandate-code")?.value ?? "").trim(), max_energy_kwh: Number(this.el("mandate-kwh")?.value) };
+      if (priceText !== "") args.max_price_cents = Number(priceText);
+      mandateShow(await this.call("set_mandate", args));
+    });
+    this.el("mandate-read")?.addEventListener("click", async () => {
+      mandateShow(await this.call("get_mandate", { resident_code: String(this.el("mandate-code")?.value ?? "").trim() }));
+    });
     this.el("demo-button")?.addEventListener("click", async () => {
       const out = this.el("demo-result");
       out.textContent = "Getting a demo code…";
       const r = await this.demoCode();
       out.className = r.ok ? "form-note" : "form-error";
       out.textContent = r.text;
-      if (r.ok) form.elements.code.value = r.code;
+      if (r.ok) {
+        form.elements.code.value = r.code;
+        const mc = this.el("mandate-code");
+        if (mc) mc.value = r.code;
+      }
     });
   }
 

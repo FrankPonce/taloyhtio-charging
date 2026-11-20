@@ -88,17 +88,56 @@ export const DEMO_PER_NIGHT = 50;
 export async function issueDemoResident(db, { now = Date.now() } = {}) {
   const night = openNight(now);
   const terms = nightTerms(night);
-  const { results } = await db.prepare("SELECT COUNT(*) AS n FROM residents WHERE kind = 'demo' AND night = ?").bind(night).all();
-  if (results[0].n >= DEMO_PER_NIGHT) throw new ArbiterError(`All ${DEMO_PER_NIGHT} demo places for the night of ${night} are taken. Try again tomorrow.`, "demo_full");
   const ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
   const part = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => ALPHABET[b % ALPHABET.length]).join("");
   const code = `demo-${part()}-${part()}`;
   const resident = `D-${part()}`;
   const expiresAt = new Date(terms.untilMs + 24 * 3600_000).toISOString(); // a day after the night, to read the receipt
+  // Count and insert in one statement, so concurrent requests can't overshoot the cap.
+  const r = await db.prepare(
+    `INSERT INTO residents (id, code_sha256, label, simulated, created_at, kind, night, expires_at)
+     SELECT ?, ?, ?, 1, ?, 'demo', ?, ? WHERE (SELECT COUNT(*) FROM residents WHERE kind = 'demo' AND night = ?) < ?`,
+  ).bind(resident, await sha256Hex(code), `Demo resident ${resident} (simulated)`, new Date(now).toISOString(), night, expiresAt, night, DEMO_PER_NIGHT).run();
+  if (r?.meta?.changes === 0) throw new ArbiterError(`All ${DEMO_PER_NIGHT} demo places for the night of ${night} are taken. Try again tomorrow.`, "demo_full");
+  // A demo resident starts with a mandate, so another site's assistant can be tried at once
+  // (and tested against it): at most DEMO_MANDATE_KWH, no price limit. Changeable on the page.
+  await db.prepare("INSERT INTO mandates (resident, max_energy_kwh, max_price_cents, set_at) VALUES (?, ?, NULL, ?)")
+    .bind(resident, DEMO_MANDATE_KWH, new Date(now).toISOString()).run();
+  return { code, resident, night, expires_at: expiresAt, requests_close_at: new Date(terms.deadlineMs).toISOString(), mandate: { max_energy_kwh: DEMO_MANDATE_KWH, max_price_cents: null } };
+}
+
+/** A demo resident's starting mandate for other sites' assistants, in kWh. */
+export const DEMO_MANDATE_KWH = 40;
+
+const MANDATE_LIMITS = { energyKwh: { min: 1, max: 120 }, priceCents: { min: 0, max: 100 } };
+
+/**
+ * Set the resident's mandate: the limits within which another site's assistant may send a
+ * request for them. Only the housing company's own page may call this (mcp.js checks), with
+ * the resident's code. Replaces any earlier mandate.
+ *
+ * :param input: {residentCode, maxEnergyKwh, maxPriceCents (null for none)}.
+ * :return: {resident, max_energy_kwh, max_price_cents, set_at}.
+ */
+export async function setMandate(db, { residentCode, maxEnergyKwh, maxPriceCents = null }, { now = Date.now() } = {}) {
+  const who = await residentByCode(db, residentCode, now);
+  const e = MANDATE_LIMITS.energyKwh;
+  const p = MANDATE_LIMITS.priceCents;
+  if (!Number.isFinite(maxEnergyKwh) || maxEnergyKwh < e.min || maxEnergyKwh > e.max) throw new ArbiterError(`The energy limit must be between ${e.min} and ${e.max} kWh.`, "bad_mandate");
+  if (maxPriceCents !== null && (!Number.isFinite(maxPriceCents) || maxPriceCents < p.min || maxPriceCents > p.max)) throw new ArbiterError(`A spot-price limit must be between ${p.min} and ${p.max} c/kWh, or none.`, "bad_mandate");
+  const at = new Date(now).toISOString();
   await db.prepare(
-    "INSERT INTO residents (id, code_sha256, label, simulated, created_at, kind, night, expires_at) VALUES (?, ?, ?, 1, ?, 'demo', ?, ?)",
-  ).bind(resident, await sha256Hex(code), `Demo resident ${resident} (simulated)`, new Date(now).toISOString(), night, expiresAt).run();
-  return { code, resident, night, expires_at: expiresAt, requests_close_at: new Date(terms.deadlineMs).toISOString() };
+    `INSERT INTO mandates (resident, max_energy_kwh, max_price_cents, set_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT (resident) DO UPDATE SET max_energy_kwh = excluded.max_energy_kwh, max_price_cents = excluded.max_price_cents, set_at = excluded.set_at`,
+  ).bind(who.id, maxEnergyKwh, maxPriceCents, at).run();
+  return { resident: who.id, max_energy_kwh: maxEnergyKwh, max_price_cents: maxPriceCents, set_at: at };
+}
+
+/** The resident's mandate, or null. */
+export async function getMandate(db, { residentCode }, { now = Date.now() } = {}) {
+  const who = await residentByCode(db, residentCode, now);
+  const m = await db.prepare("SELECT max_energy_kwh, max_price_cents, set_at FROM mandates WHERE resident = ?").bind(who.id).first();
+  return m ? { resident: who.id, ...m } : null;
 }
 
 const randomId = (prefix) => `${prefix}_${[...crypto.getRandomValues(new Uint8Array(12))].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
@@ -109,11 +148,14 @@ const randomId = (prefix) => `${prefix}_${[...crypto.getRandomValues(new Uint8Ar
  * :param db: The arbiter's D1 database.
  * :param input: {residentCode, night (optional, default: the open night), energyKwh, readyBy: "HH:MM",
  *     chargerKw (optional, default: the charger's power)}.
- * :param opts: {now, callerNetworkSha256 (from the admission check, M5b)}.
+ * :param opts: {now, caller: for a request from another site's server, the admission decision's
+ *     facts {origin, network_sha256, model, policy_sha256}; null for the resident's own page.
+ *     callerNetworkSha256: older name for caller.network_sha256}.
  * :return: {request_id, commitment, night, requests_close_at, status}.
  * :raises ArbiterError: With a reason the resident can act on.
  */
-export async function submitRequest(db, input, { now = Date.now(), callerNetworkSha256 = null } = {}) {
+export async function submitRequest(db, input, { now = Date.now(), caller = null, callerNetworkSha256 = null } = {}) {
+  if (callerNetworkSha256 && !caller) caller = { network_sha256: callerNetworkSha256 };
   const who = await residentByCode(db, input.residentCode, now);
   const resident = who.id;
   const night = input.night ?? who.night ?? openNight(now);
@@ -125,6 +167,18 @@ export async function submitRequest(db, input, { now = Date.now(), callerNetwork
   if (!(chargerKw <= RULES.chargers.kwEach)) throw new ArbiterError(`The chargers deliver at most ${RULES.chargers.kwEach} kW.`, "bad_charger");
   const sealed = { resident, night, energyKwh: input.energyKwh, chargerKw, fromMs: terms.fromMs, readyByMs: readyByOf(night, input.readyBy) };
   if (input.maxPriceCents !== undefined && input.maxPriceCents !== null) sealed.maxPriceCents = input.maxPriceCents;
+  // Another site's assistant acts only within the mandate the resident set here. However well
+  // tested the agent is, a request outside it is refused; an unset price limit takes the
+  // mandate's, so the agent can't leave it out to widen it.
+  if (caller?.origin) {
+    const m = await db.prepare("SELECT max_energy_kwh, max_price_cents FROM mandates WHERE resident = ?").bind(resident).first();
+    if (!m) throw new ArbiterError("You haven't set limits for other sites' assistants. Set them on As Oy Koivurinne's page; until then, only requests you send there are accepted.", "no_mandate");
+    if (sealed.energyKwh > m.max_energy_kwh) throw new ArbiterError(`Outside your mandate: this asks for ${sealed.energyKwh} kWh, and your limit for other sites' assistants is ${m.max_energy_kwh} kWh. Change it on As Oy Koivurinne's page if you mean it.`, "outside_mandate");
+    if (m.max_price_cents !== null && m.max_price_cents !== undefined) {
+      if (sealed.maxPriceCents === undefined) sealed.maxPriceCents = m.max_price_cents;
+      else if (sealed.maxPriceCents > m.max_price_cents) throw new ArbiterError(`Outside your mandate: this allows up to ${sealed.maxPriceCents} c/kWh, and your limit for other sites' assistants is ${m.max_price_cents} c/kWh.`, "outside_mandate");
+    }
+  }
   const nonce = newNonce();
   const commitment = await commitmentOf(sealed, nonce);
   const id = randomId("req");
@@ -135,9 +189,9 @@ export async function submitRequest(db, input, { now = Date.now(), callerNetwork
     // Inserted only while the night is not planned yet, in the same statement: a request that
     // passed the clock check just before 18:00 can't land after the night's plan was read.
     result = await db.prepare(
-      `INSERT INTO requests (id, night, resident, energy_kwh, charger_kw, from_ms, ready_by_ms, max_price_cents, nonce, commitment, caller_network_sha256, created_at)
-       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM nights WHERE night = ?)`,
-    ).bind(id, night, resident, sealed.energyKwh, chargerKw, sealed.fromMs, sealed.readyByMs, sealed.maxPriceCents ?? null, nonce, commitment, callerNetworkSha256, new Date(now).toISOString(), night).run();
+      `INSERT INTO requests (id, night, resident, energy_kwh, charger_kw, from_ms, ready_by_ms, max_price_cents, nonce, commitment, caller_network_sha256, caller_origin, caller_model, caller_policy_sha256, created_at)
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM nights WHERE night = ?)`,
+    ).bind(id, night, resident, sealed.energyKwh, chargerKw, sealed.fromMs, sealed.readyByMs, sealed.maxPriceCents ?? null, nonce, commitment, caller?.network_sha256 ?? null, caller?.origin ?? null, caller?.model ?? null, caller?.policy_sha256 ?? null, new Date(now).toISOString(), night).run();
   } catch (error) {
     if (!/UNIQUE/i.test(String(error?.message))) throw error;
     // One request per resident per night. If the answer to the first one was lost, sending the
@@ -208,7 +262,9 @@ export async function scheduleIfDue(db, night, { now = Date.now(), prices = null
     ).bind(night, schedule.ruleVersion, schedule.limitKw, schedule.feeCentsPerKwh, pricesSha256, JSON.stringify(used), JSON.stringify(schedule.load), at, night, rows.length),
   ];
   for (const a of schedule.assignments) {
-    const jws = await signReceipt(receiptFor({ schedule, requestId: a.id, issuer, night, pricesSha256, now }), privateJwk);
+    const row = rows.find((x) => x.id === a.id);
+    const admittedBy = row?.caller_origin ? { origin: row.caller_origin, network_sha256: row.caller_network_sha256, model: row.caller_model, policy_sha256: row.caller_policy_sha256 } : null;
+    const jws = await signReceipt(receiptFor({ schedule, requestId: a.id, issuer, night, pricesSha256, now, admittedBy }), privateJwk);
     statements.push(db.prepare(`INSERT INTO receipts (request_id, night, jws, issued_at) SELECT ?, ?, ?, ? WHERE ${same}`).bind(a.id, night, jws, at, night, rows.length));
   }
   try {

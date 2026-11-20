@@ -181,7 +181,7 @@ test("MCP protocol: initialize, tools/list, bad arguments", async () => {
   assert.equal(init.result.protocolVersion, "2025-06-18");
   assert.match(init.result.instructions, /SIMULATED/);
   const list = await rpc({ jsonrpc: "2.0", id: 2, method: "tools/list" });
-  assert.deepEqual(list.result.tools.map((t) => t.name), ["get_rules", "submit_charging_request", "get_receipt", "get_night_load"]);
+  assert.deepEqual(list.result.tools.map((t) => t.name), ["get_rules", "submit_charging_request", "set_mandate", "get_mandate", "get_receipt", "get_night_load"]);
   const bad = await rpc({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "submit_charging_request", arguments: { resident_code: "x", energy_kwh: "30", ready_by: "07:00" } } });
   assert.match(bad.error.message, /energy_kwh must be a number/);
   const extra = await rpc({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "get_rules", arguments: { admin: true } } });
@@ -291,4 +291,29 @@ test("no admission check wired: protected tools refuse instead of opening up", a
   assert.match(r.content[0].text, /no admission check configured/);
   const rules = await handleArbiterMcp(new Request(`${ISSUER}/mcp`, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_rules", arguments: {} } }) }), { ARBITER_DB: db }, { now: BEFORE });
   assert.ok(!(await rules.json()).result.isError, "reading the rules needs no admission");
+});
+
+test("demo codes: start with a 40 kWh mandate, and the per-night cap can't be overshot", async () => {
+  const { issueDemoResident, getMandate, DEMO_PER_NIGHT } = await import("../src/arbiter/service.js");
+  const { db } = await setup();
+  const d = await issueDemoResident(db, { now: BEFORE });
+  assert.deepEqual(d.mandate, { max_energy_kwh: 40, max_price_cents: null });
+  assert.equal((await getMandate(db, { residentCode: d.code }, { now: BEFORE })).max_energy_kwh, 40);
+  const results = await Promise.allSettled(Array.from({ length: DEMO_PER_NIGHT + 5 }, () => issueDemoResident(db, { now: BEFORE })));
+  const n = await db.prepare("SELECT COUNT(*) AS n FROM residents WHERE kind = 'demo'").first();
+  assert.equal(n.n, DEMO_PER_NIGHT);
+  assert.ok(results.some((r) => r.status === "rejected" && /demo places .* are taken/.test(r.reason.message)));
+});
+
+test("a receipt names what admitted a cross-site request: origin, network, model, policy digest", async () => {
+  const { submitRequest, scheduleIfDue, getReceipt } = await import("../src/arbiter/service.js");
+  const { db, prices, privateJwk, jwks } = await setup();
+  await db.prepare("INSERT INTO mandates (resident, max_energy_kwh, max_price_cents, set_at) VALUES ('A1', 30, NULL, 'x')").run();
+  const caller = { origin: "https://charge.example", network_sha256: "a".repeat(64), model: "z-ai/glm-4.7-flash", policy_sha256: "b".repeat(64) };
+  const viaCharge = await submitRequest(db, { residentCode: RESIDENTS[0].code, energyKwh: 20, readyBy: "07:00" }, { now: BEFORE, caller });
+  const byHand = await submitRequest(db, { residentCode: RESIDENTS[1].code, energyKwh: 10, readyBy: "06:00" }, { now: BEFORE });
+  await scheduleIfDue(db, NIGHT, { now: AFTER, fetchImpl: prices.fetchImpl, privateJwk, issuer: ISSUER });
+  const read = async (id, code) => (await verifyReceipt((await getReceipt(db, { requestId: id, residentCode: code }, { now: AFTER })).receipt_jws, { issuer: ISSUER, jwks })).receipt;
+  assert.deepEqual((await read(viaCharge.request_id, RESIDENTS[0].code)).admitted_by, caller);
+  assert.equal((await read(byHand.request_id, RESIDENTS[1].code)).admitted_by, undefined, "the resident's own request was not admitted by anyone");
 });

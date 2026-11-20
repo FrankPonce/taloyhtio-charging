@@ -369,3 +369,13 @@ body > dialog:not(.request-dialog) button { margin-right: 8px; }
   .site-header nav a { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1.5px no-repeat; transition: background-size .3s var(--ease), color .2s; }
   .site-header nav a:hover { background-size: 100% 1.5px; }
 }
+
+/* Limits for other sites' assistants (the mandate): a quiet disclosure under the request form. */
+.mandate { margin: 22px 0 0; padding-top: 18px; border-top: 1px solid var(--line); }
+.mandate summary { cursor: pointer; font-weight: 700; color: var(--dusk); width: max-content; list-style: none; display: inline-flex; align-items: center; gap: 10px; }
+.mandate summary::-webkit-details-marker { display: none; }
+.mandate summary::before { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .2s var(--ease); }
+.mandate[open] summary::before { transform: rotate(45deg); }
+.mandate p { margin: 10px 0 0; }
+.mandate-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 20px; margin-top: 14px; }
+.mandate-form .form-actions, .mandate-form .form-result, .mandate-form .form-error { grid-column: 1 / -1; }

@@ -149,6 +149,29 @@
           </div>
         </div>
       </form>
+      <details class="mandate">
+        <summary>Limits for other sites' assistants</summary>
+        <p>An assistant on another site, such as Charge's, can send a request for you only within limits you set here. However well it was tested, a request that asks for more is refused. Requests you send on this page don't need them. Demo codes start at 40 kWh.</p>
+        <form id="mandate-form" class="mandate-form" autocomplete="off" novalidate>
+          <div class="field">
+            <label for="mandate-code">Resident code</label>
+            <input id="mandate-code" type="password" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="mandate-kwh">At most, kWh per request</label>
+            <input id="mandate-kwh" type="number" min="1" max="120" step="1" value="40" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label for="mandate-price">Spot-price limit, c/kWh</label>
+            <input id="mandate-price" type="text" inputmode="decimal" placeholder="Optional" class="price-input">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="button-secondary">Save limits</button>
+            <button type="button" id="mandate-read" class="button-plain">Show my limits</button>
+          </div>
+          <p id="mandate-result" class="form-result" role="status"></p>
+        </form>
+      </details>
       <p class="fine">Your request goes only to this site's scheduler, which signs your receipt. The code is not saved in your browser. Not sure how much to charge? <a href="https://charge.frankmp12357.workers.dev/">Charge</a> plans the cheapest time from spot prices, and its Shared chargers box sends the same request.</p>
     </section>
 

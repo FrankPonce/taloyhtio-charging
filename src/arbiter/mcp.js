@@ -11,7 +11,7 @@
 //
 // Spec: https://modelcontextprotocol.io/specification (lifecycle, transports, tools).
 
-import { ArbiterError, getReceipt, nightLoad, publicRules, submitRequest } from "./service.js";
+import { ArbiterError, getMandate, getReceipt, nightLoad, publicRules, setMandate, submitRequest } from "./service.js";
 
 export const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 export const SERVER_INFO = { name: "koivurinne-arbiter", title: "As Oy Koivurinne night-charging arbiter (simulated housing company)", version: "0.1.0" };
@@ -50,6 +50,34 @@ export const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: "set_mandate",
+    title: "Set your limits for other sites' assistants",
+    description: "The resident sets the limits within which another site's assistant may send a request for them: at most this many kWh, and optionally a spot-price limit. Only on the housing company's own page; another site can't call it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        resident_code: str("The resident's code from the board."),
+        max_energy_kwh: num("At most this many kWh per request (1-120)."),
+        max_price_cents: num("Optional: spot-price limit in c/kWh incl. VAT (0-100). Leave out for none."),
+      },
+      required: ["resident_code", "max_energy_kwh"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: "get_mandate",
+    title: "Read your limits for other sites' assistants",
+    description: "The resident's current mandate for other sites' assistants, or none.",
+    inputSchema: {
+      type: "object",
+      properties: { resident_code: str("The resident's code from the board.") },
+      required: ["resident_code"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
     name: "get_receipt",
@@ -209,12 +237,30 @@ const HANDLERS = {
     return toolResult(text, r);
   },
 
+  async set_mandate(args, env, ctx) {
+    const caller = await admitted(ctx);
+    // The mandate is the resident's own act: never through another site's server.
+    if (caller.caller !== "same-origin") throw new ArbiterError("Limits for other sites' assistants can only be set on As Oy Koivurinne's own page.", "not_allowed");
+    const m = await setMandate(db(env), { residentCode: args.resident_code, maxEnergyKwh: args.max_energy_kwh, maxPriceCents: args.max_price_cents ?? null }, { now: ctx.now ?? Date.now() });
+    return toolResult(`Saved: other sites' assistants may ask for at most ${m.max_energy_kwh} kWh${m.max_price_cents === null ? "" : `, never above ${m.max_price_cents} c/kWh spot price`}.`, m);
+  },
+
+  async get_mandate(args, env, ctx) {
+    await admitted(ctx);
+    const m = await getMandate(db(env), { residentCode: args.resident_code }, { now: ctx.now ?? Date.now() });
+    return toolResult(m ? `Other sites' assistants may ask for at most ${m.max_energy_kwh} kWh${m.max_price_cents === null ? "" : `, never above ${m.max_price_cents} c/kWh spot price`}.` : "No limits set: other sites' assistants can't send requests for you yet.", m ?? { mandate: null });
+  },
+
   async submit_charging_request(args, env, ctx) {
     const caller = await admitted(ctx);
     const r = await submitRequest(db(env), {
       residentCode: args.resident_code, energyKwh: args.energy_kwh, readyBy: args.ready_by, chargerKw: args.charger_kw, night: args.night,
       maxPriceCents: args.max_price_cents,
-    }, { now: ctx.now ?? Date.now(), callerNetworkSha256: caller.network_sha256 ?? null });
+    }, {
+      now: ctx.now ?? Date.now(),
+      // A cross-site caller acts within the resident's mandate; the resident's own page doesn't need one.
+      caller: caller.agent ? { origin: caller.agent, network_sha256: caller.network_sha256 ?? null, model: caller.model ?? null, policy_sha256: caller.policy_sha256 ?? null } : null,
+    });
     const cap = args.max_price_cents === undefined || args.max_price_cents === null ? "" : `, never above ${args.max_price_cents} c/kWh`;
     const text = `${r.status === "already_received" ? "Already received earlier (this is the same request, nothing new was sent). " : ""}Request received for the night of ${r.night}: ${args.energy_kwh} kWh by ${args.ready_by}${cap}. Request ID ${r.request_id}. `
       + `Commitment ${r.commitment.slice(0, 16)}… (proof of exactly what was asked). The night is planned after ${hhmm(r.requests_close_at)}; then get_receipt returns the signed plan and cost.`;

@@ -124,6 +124,8 @@ test("authorizer: own page passes, unsigned outsiders are refused, signed caller
 test("end to end: an admitted caller submits; a refused one gets the reason; reads stay open", async () => {
   const db = await migratedDb();
   await db.prepare("INSERT INTO residents (id, code_sha256, label, created_at) VALUES ('A1', ?, 'Simulated resident A1', 'x')").bind(await sha256Hex("koivu-test-0001")).run();
+  // The resident's mandate for other sites' assistants (set on the housing page in real use).
+  await db.prepare("INSERT INTO mandates (resident, max_energy_kwh, max_price_cents, set_at) VALUES ('A1', 30, NULL, 'x')").run();
   const call = async (w, name, args, opts = {}) => {
     clearAdmissionCache();
     const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args, _meta: { [MODEL_META]: opts.model ?? MODEL } } });
@@ -180,4 +182,48 @@ test("network × model: the caller must say which model ran its agent, and only 
   const signed = await asPlain(await w.signed(BODY));
   const swapped = await admit({ ...signed, body: BODY.replace(MODEL, "openai/gpt-oss-20b") }, { policy: POLICY, fetchImpl: w.fetchImpl, now: NOW });
   assert.equal(swapped.step, "signature");
+});
+
+test("the mandate holds even for a signed, well-tested agent: asking for more is refused, and only the housing page sets it", async () => {
+  const db = await migratedDb();
+  for (const [id, code] of [["B1", "koivu-test-0101"], ["B2", "koivu-test-0102"], ["B3", "koivu-test-0103"], ["B4", "koivu-test-0104"]]) {
+    await db.prepare("INSERT INTO residents (id, code_sha256, label, created_at) VALUES (?, ?, ?, 'x')").bind(id, await sha256Hex(code), `Simulated resident ${id}`).run();
+  }
+  await db.prepare("INSERT INTO mandates (resident, max_energy_kwh, max_price_cents, set_at) VALUES ('B1', 20, 6, 'x'), ('B2', 20, 6, 'x'), ('B3', 20, 6, 'x')").run();
+  const w = await world(); // signed, domain-signed network, attested 100 on the declared model
+  const call = async (name, args, { sameOrigin = false } = {}) => {
+    clearAdmissionCache();
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args, _meta: { [MODEL_META]: MODEL } } });
+    const req = sameOrigin ? new Request(`${ARBITER}/mcp`, { method: "POST", headers: { origin: ARBITER }, body }) : await w.signed(body);
+    const res = await handleArbiterMcp(req.clone(), { ARBITER_DB: db }, { now: NOW, authorize: authorizer(req, { db, policy: POLICY, fetchImpl: w.fetchImpl, now: NOW }) });
+    return (await res.json()).result;
+  };
+  // Admitted, but asks for more energy than the resident allowed: refused at the mandate.
+  const tooMuch = await call("submit_charging_request", { resident_code: "koivu-test-0101", energy_kwh: 60, ready_by: "07:00" });
+  assert.equal(tooMuch.isError, true);
+  assert.match(tooMuch.content[0].text, /Outside your mandate: this asks for 60 kWh, and your limit .* is 20 kWh/);
+  // A higher price limit than the resident's: refused. No price limit: the resident's applies.
+  const pricier = await call("submit_charging_request", { resident_code: "koivu-test-0102", energy_kwh: 10, ready_by: "07:00", max_price_cents: 15 });
+  assert.match(pricier.content[0].text, /Outside your mandate: this allows up to 15 c\/kWh/);
+  const noCap = await call("submit_charging_request", { resident_code: "koivu-test-0103", energy_kwh: 10, ready_by: "07:00" });
+  assert.ok(!noCap.isError, noCap.content[0].text);
+  const row = await db.prepare("SELECT max_price_cents, caller_origin, caller_model, caller_policy_sha256 FROM requests WHERE resident = 'B3'").first();
+  assert.equal(row.max_price_cents, 6, "the agent can't widen the limit by leaving it out");
+  assert.equal(row.caller_origin, "https://charge.example");
+  assert.equal(row.caller_model, MODEL);
+  assert.match(row.caller_policy_sha256, /^[0-9a-f]{64}$/);
+  // No mandate at all: another site's assistant can't act for this resident yet.
+  const none = await call("submit_charging_request", { resident_code: "koivu-test-0104", energy_kwh: 5, ready_by: "07:00" });
+  assert.match(none.content[0].text, /haven't set limits for other sites' assistants/);
+  // Another site can't set or widen the mandate; the housing page can.
+  const widen = await call("set_mandate", { resident_code: "koivu-test-0101", max_energy_kwh: 120 });
+  assert.match(widen.content[0].text, /only be set on As Oy Koivurinne's own page/);
+  const own = await call("set_mandate", { resident_code: "koivu-test-0104", max_energy_kwh: 15 }, { sameOrigin: true });
+  assert.ok(!own.isError, own.content[0].text);
+  const after = await call("submit_charging_request", { resident_code: "koivu-test-0104", energy_kwh: 5, ready_by: "07:00" });
+  assert.ok(!after.isError, after.content[0].text);
+  // The resident's own request on the housing page needs no mandate.
+  await db.prepare("DELETE FROM mandates WHERE resident = 'B1'").run();
+  const byHand = await call("submit_charging_request", { resident_code: "koivu-test-0101", energy_kwh: 60, ready_by: "07:00" }, { sameOrigin: true });
+  assert.ok(!byHand.isError, byHand.content[0].text);
 });

@@ -45,7 +45,7 @@ export async function pricesSnapshotHash(prices) {
  * :return: The statement (not yet signed).
  * :raises Error: If the request is not in the schedule.
  */
-export function receiptFor({ schedule, requestId, issuer, night, pricesSha256, now = Date.now() }) {
+export function receiptFor({ schedule, requestId, issuer, night, pricesSha256, now = Date.now(), admittedBy = null }) {
   const a = schedule.assignments.find((x) => x.id === requestId);
   if (!a) throw new Error(`Request ${requestId} is not in this schedule.`);
   return {
@@ -69,6 +69,9 @@ export function receiptFor({ schedule, requestId, issuer, night, pricesSha256, n
       slots: a.slots.map((s) => ({ start: new Date(s.start).toISOString(), end: new Date(s.end).toISOString(), kw: s.kw, kwh: s.kwh, price_cents: s.price })),
     },
     cost: { energy_eur: a.energyCostEur, fee_eur: a.feeEur, total_eur: a.totalEur },
+    // For a request another site sent: who sent it, the network and model it declared, and the
+    // digest of the admission policy that let it in. Absent when the resident sent it here.
+    ...(admittedBy ? { admitted_by: admittedBy } : {}),
     iat: new Date(now).toISOString(),
   };
 }
