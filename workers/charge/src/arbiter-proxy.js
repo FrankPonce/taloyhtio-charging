@@ -16,9 +16,9 @@ export const ARBITER_TOOLS = ["get_rules", "submit_charging_request", "get_recei
 const MAX_BODY = 8 * 1024;
 
 // Trust is network × model: the page says which model its assistant ran on, and the signed
-// call carries it in MCP's _meta, so the arbiter checks the attestation for that model.
+// call carries it (agent-trust-kit signRequest { model }), so the arbiter checks the
+// attestation for that model.
 // This site's default models have Workers AI names; testers name them as model providers do.
-export const MODEL_META = "agent-trust-kit/model";
 export const MODEL_NAMES = {
   "@cf/openai/gpt-oss-20b": "openai/gpt-oss-20b",
   "@cf/zai-org/glm-4.7-flash": "z-ai/glm-4.7-flash",
@@ -73,11 +73,11 @@ export async function arbiterProxy(request, env, { fetchImpl = globalThis.fetch,
   if (typeof args !== "object" || Array.isArray(args)) return fail(400, "arguments must be an object.");
 
   const model = testerModelName(call.model);
-  const params = { name: call.tool, arguments: args, ...(model ? { _meta: { [MODEL_META]: model } } : {}) };
-  const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params });
+  const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: call.tool, arguments: args } });
   const signed = await signRequest(
     { method: "POST", url: env.ARBITER_MCP_URL, headers: { "content-type": "application/json", accept: "application/json" }, body },
-    { privateJwk: key, signatureAgent: env.SITE_ORIGIN },
+    // The kit puts the model in the signed body (params._meta), so the signature covers it.
+    { privateJwk: key, signatureAgent: env.SITE_ORIGIN, model },
   );
   let resp;
   try {

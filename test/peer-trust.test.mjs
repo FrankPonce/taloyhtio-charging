@@ -47,3 +47,10 @@ test("both sites ship the kit's consent-card script unchanged", async () => {
     assert.equal(copy, kit, `sites/${site}/js/peer-card.js differs from agent-trust-kit; copy it again`);
   }
 });
+
+test("the practice-night page ships the kit's verify-lite script unchanged", async () => {
+  const require = createRequire(import.meta.url);
+  const kit = await readFile(require.resolve("agent-trust-kit/verify-lite"), "utf8");
+  const copy = await readFile(new URL("../sites/taloyhtio/js/verify-lite.js", import.meta.url), "utf8");
+  assert.equal(copy, kit, "sites/taloyhtio/js/verify-lite.js differs from agent-trust-kit; copy it again");
+});

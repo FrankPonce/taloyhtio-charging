@@ -10,16 +10,13 @@
 //    shortfall_kwh, feasible, slots}, cost: {energy_eur, fee_eur, total_eur}, iat}
 // It names only the resident's own request, never anyone else's.
 
-import { canonicalHash, signStatement, verifyStatement } from "agent-trust-kit";
+import { canonicalHash, commit, newNonce as kitNonce, signReceipt as kitSignReceipt, verifyReceipt as kitVerifyReceipt } from "agent-trust-kit";
 import { RULE_VERSION, normalizePrices } from "./scheduler.js";
 
 export const RECEIPT_TYPE = "charging-receipt/v1";
 
-/** Random 128-bit nonce as hex. */
-export function newNonce() {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+/** Random 128-bit nonce as hex (agent-trust-kit). */
+export const newNonce = kitNonce;
 
 /**
  * Commitment hash of a sealed request.
@@ -30,11 +27,9 @@ export function newNonce() {
  * :return: Hex SHA-256.
  */
 export async function commitmentOf(sealed, nonce) {
-  if (typeof nonce !== "string" || nonce.length < 32) throw new TypeError("A commitment needs a server nonce of at least 128 bits.");
+  // agent-trust-kit commit(): the sealed fields plus the nonce; an unset mandate is left out.
   const { resident, night, energyKwh, chargerKw, fromMs, readyByMs, maxPriceCents } = sealed;
-  const fields = { resident, night, energyKwh, chargerKw, fromMs, readyByMs, nonce };
-  if (maxPriceCents !== undefined && maxPriceCents !== null) fields.maxPriceCents = maxPriceCents;
-  return canonicalHash(fields);
+  return commit({ resident, night, energyKwh, chargerKw, fromMs, readyByMs, maxPriceCents }, nonce);
 }
 
 /** SHA-256 of the canonical JSON of the 15-minute prices the schedule used. */
@@ -80,7 +75,7 @@ export function receiptFor({ schedule, requestId, issuer, night, pricesSha256, n
 /** Sign a receipt statement with the site's private JWK. */
 export function signReceipt(statement, privateJwk) {
   if (statement?.typ !== RECEIPT_TYPE) throw new Error("Not a charging receipt.");
-  return signStatement(statement, privateJwk);
+  return kitSignReceipt(statement, privateJwk);
 }
 
 /**
@@ -89,9 +84,6 @@ export function signReceipt(statement, privateJwk) {
  * :return: {ok: true, receipt, kid} or {ok: false, reason}.
  */
 export async function verifyReceipt(jws, { issuer, jwks = null, fetchImpl } = {}) {
-  const r = await verifyStatement(jws, { issuer, jwks, fetchImpl });
-  if (!r.ok) return r;
-  if (r.statement.typ !== RECEIPT_TYPE) return { ok: false, reason: "not a charging receipt" };
-  if (issuer && r.statement.iss !== new URL(issuer).origin) return { ok: false, reason: "issued by another site" };
-  return { ok: true, receipt: r.statement, kid: r.kid };
+  const r = await kitVerifyReceipt(jws, { issuer, typ: RECEIPT_TYPE, jwks, fetchImpl });
+  return r.ok || !/^not a /.test(r.reason) ? r : { ok: false, reason: "not a charging receipt" };
 }

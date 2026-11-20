@@ -1,44 +1,18 @@
-// Admission check for cross-site callers of the arbiter (M5b). No model involved.
+// Admission check for cross-site callers of the arbiter. No model involved.
 //
-// A request from another site's server is admitted only if, in order:
-//   1. its RFC 9421 signature verifies against the keys the caller's domain publishes
-//      (Signature-Agent names the domain; agent-trust-kit verifyRequest);
-//   2. the caller's agent network (from its standard agent-manifest.json) is signed by that
-//      same domain (agent-trust-kit verifyNetwork);
-//   3. a tester this arbiter trusts has a valid, unexpired attestation for exactly that
-//      network hash, meeting the policy (score, coverage);
-// The resident code is checked after this, by the service. Every refusal says which step
-// failed and why, so the caller can fix it.
-//
-// The housing site's own page (same origin) is the housing company itself and skips this.
+// The check itself is agent-trust-kit's admit(): the caller's RFC 9421 signature, the model
+// it declares (only an attestation for that model counts: trust is network × model, FINDINGS
+// F1, F48), its domain-signed network, and an attestation from a trusted tester for exactly
+// that network, its actions and that model (score ≥ 80, coverage ≥ 80, no test failed
+// outright, F45). Every refusal names the step. This file adds what is local to the arbiter:
+// a 5-minute cache of callers' public files, the admissions log, and the rule that the
+// housing site's own page (same origin) is the housing company itself and skips the check.
+// The resident code is checked after this, by the service: admission is not authorization.
 
-import { DEFAULT_TRUST_POLICY, cachingFetch, checkNetwork, verifyRequest } from "agent-trust-kit";
+import { DEFAULT_ADMIT_POLICY, admit as kitAdmit, cachingFetch } from "agent-trust-kit";
 
-// Tester crash-test, score ≥ 80, coverage ≥ 80, and no test that failed outright: an
-// average can hide a critical failure (Spot Deals averaged 81 while inventing a whole
-// price table, FINDINGS F45). The kit's default trust policy is exactly this.
-// Trust is network × model (FINDINGS F1, F48): a caller's server must say which model ran
-// its agent, and only an attestation for that model counts. The model is the caller's own
-// claim (signed with the body, but nobody can prove which model ran in a visitor's browser);
-// it stops a site from presenting a test on a strong model for a session on a weak one.
-export const DEFAULT_POLICY = { ...DEFAULT_TRUST_POLICY, requireModel: true };
-
-/** Where a caller declares its model: MCP's `_meta` on the signed tools/call. */
-export const MODEL_META = "agent-trust-kit/model";
-
-/**
- * The model a signed JSON-RPC body declares, or null.
- *
- * :param bodyText: The request body as received (covered by the signature's content digest).
- */
-export function declaredModel(bodyText) {
-  try {
-    const m = JSON.parse(bodyText)?.params?._meta?.[MODEL_META];
-    return typeof m === "string" && m.trim() && m.length <= 200 ? m.trim() : null;
-  } catch {
-    return null;
-  }
-}
+export { MODEL_META, declaredModel } from "agent-trust-kit";
+export const DEFAULT_POLICY = DEFAULT_ADMIT_POLICY;
 
 const CACHE_MS = 5 * 60_000;
 const cache = new Map(); // fetched public files; per Worker isolate
@@ -48,45 +22,18 @@ export function clearAdmissionCache() {
   cache.clear();
 }
 
-// Reasons from the kit may end with a full stop; ours add one, so drop doubles.
-const refuse = (step, reason, extra = {}) => ({ ok: false, step, reason: String(reason).replace(/\.{2,}$/, "."), ...extra });
+const refuse = (step, reason, extra = {}) => ({ ok: false, step, reason, ...extra });
 
 /**
- * Decide whether a cross-site request may reach the arbiter.
+ * Decide whether a cross-site request may reach the arbiter (agent-trust-kit admit(), with
+ * callers' public files cached for 5 minutes).
  *
  * :param request: {method, url, headers, body} as received.
  * :param opts: {policy, fetchImpl, now, jwks (tests: the caller's key directory)}.
- * :return: {ok: true, agent, network_url, network_sha256, attestation: {iss, score,
- *     coverage, model, exp}} or {ok: false, step: "signature"|"network"|"attestation",
- *     reason, agent?, network_url?}.
+ * :return: admit()'s decision.
  */
-export async function admit(request, { policy = DEFAULT_POLICY, fetchImpl = globalThis.fetch, now = Date.now(), jwks = null } = {}) {
-
-  // 1. Who is calling: an RFC 9421 signature from the caller's server.
-  const sig = await verifyRequest(request, { jwks, fetchImpl });
-  if (!sig.ok) return refuse("signature", `The request is not signed by a site's published key: ${sig.reason}.`);
-  const agent = sig.agent;
-
-  // Which model ran the caller's agent (signed with the body; the caller's claim).
-  const model = declaredModel(request.body);
-  if (!model && policy.requireModel) {
-    return refuse("model", `The request does not say which model ran ${agent}'s agent (params._meta["${MODEL_META}"]). Trust depends on the network and the model, so the arbiter needs both.`, { agent });
-  }
-
-  // 2 and 3: the same check a site's consent card uses for its partners (agent-trust-kit
-  // checkNetwork): the caller's published network, signed by its own domain, and an
-  // attestation from a trusted tester for exactly that network hash and that model,
-  // meeting the policy.
-  const r = await checkNetwork({ origin: agent }, { policy, fetchImpl: cachingFetch(fetchImpl, { cache, ttlMs: CACHE_MS, now: () => now }), now, jwks, models: model ? [model] : null });
-  const { network_url } = r;
-  if (r.error) return refuse("network", `${r.error}.`, { agent, network_url });
-  if (r.signature.status === "unsigned") return refuse("network", `${network_url} is not signed by its domain (no signature file).`, { agent, network_url });
-  if (!r.signature.ok) return refuse("network", `${network_url} is not validly signed by ${agent}: ${r.signature.reason}.`, { agent, network_url });
-  const a = r.attestation;
-  if (!a.ok) {
-    return refuse("attestation", `No trusted tester vouches for ${network_url} as published now${model ? ` on ${model}` : ""} (score ≥ ${policy.minScore}, coverage ≥ ${policy.minCoverage}${policy.noFailedTests !== false ? ", no failed test" : ""}): ${a.reason}.`, { agent, network_url });
-  }
-  return { ok: true, agent, network_url, network_sha256: r.network_sha256, model, attestation: { iss: a.iss, score: a.score, coverage: a.coverage, model: a.model, exp: a.exp } };
+export function admit(request, { policy = DEFAULT_POLICY, fetchImpl = globalThis.fetch, now = Date.now(), jwks = null } = {}) {
+  return kitAdmit(request, { policy, now, jwks, fetchImpl: cachingFetch(fetchImpl, { cache, ttlMs: CACHE_MS, now: () => now }) });
 }
 
 /** Record an admission decision (no resident data). */

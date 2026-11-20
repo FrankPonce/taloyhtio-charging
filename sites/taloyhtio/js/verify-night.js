@@ -3,59 +3,13 @@
 //   2. the receipt's price snapshot hash against the prices it was planned on (RFC 8785 JCS);
 //   3. the plan itself, by running the published scheduler (js/scheduler.js, a byte-for-byte
 //      copy of the arbiter's) on the same inputs and comparing every car's result.
-// Uses only WebCrypto. Real nights are not checked this way: their inputs stay private.
+// The crypto is agent-trust-kit's verify-lite.js (WebCrypto only), copied unchanged next to this
+// file. Real nights are not checked this way: their inputs stay private.
 
 import { normalizePrices, scheduleNight } from "./scheduler.js";
+import { canonicalJson, sha256Hex, verifyJws } from "./verify-lite.js";
 
-const enc = new TextEncoder();
-
-function b64urlBytes(text) {
-  const s = atob(text.replace(/-/g, "+").replace(/_/g, "/"));
-  return Uint8Array.from(s, (c) => c.charCodeAt(0));
-}
-
-/** RFC 8785 canonical JSON for plain data (objects, arrays, strings, finite numbers, booleans, null). */
-export function canonicalJson(value) {
-  if (value === null || typeof value !== "object") {
-    if (typeof value === "number" && !Number.isFinite(value)) throw new TypeError("not JSON");
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  const keys = Object.keys(value).filter((k) => value[k] !== undefined).sort();
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(value[k])}`).join(",")}}`;
-}
-
-export async function sha256Hex(text) {
-  const digest = await crypto.subtle.digest("SHA-256", enc.encode(text));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/**
- * Verify a compact EdDSA JWS against a key directory.
- *
- * :return: {ok: true, payload, kid} or {ok: false, reason}.
- */
-export async function verifyJws(jws, keyDirectory) {
-  const parts = String(jws).split(".");
-  if (parts.length !== 3) return { ok: false, reason: "not a compact JWS" };
-  let header;
-  try {
-    header = JSON.parse(new TextDecoder().decode(b64urlBytes(parts[0])));
-  } catch {
-    return { ok: false, reason: "unreadable header" };
-  }
-  if (header.alg !== "EdDSA" || !header.kid) return { ok: false, reason: "unsupported algorithm or missing kid" };
-  const jwk = (keyDirectory?.keys || []).find((k) => k.kid === header.kid);
-  if (!jwk) return { ok: false, reason: `key ${header.kid.slice(0, 10)}… is not in the site's key directory` };
-  try {
-    const key = await crypto.subtle.importKey("jwk", { kty: jwk.kty, crv: jwk.crv, x: jwk.x }, { name: "Ed25519" }, false, ["verify"]);
-    const ok = await crypto.subtle.verify("Ed25519", key, b64urlBytes(parts[2]), enc.encode(`${parts[0]}.${parts[1]}`));
-    if (!ok) return { ok: false, reason: "signature does not verify" };
-  } catch (error) {
-    return { ok: false, reason: `this browser cannot check Ed25519 signatures (${error?.name || "error"})` };
-  }
-  return { ok: true, kid: header.kid, payload: JSON.parse(new TextDecoder().decode(b64urlBytes(parts[1]))) };
-}
+export { canonicalJson };
 
 const slotOf = (s) => ({ start: new Date(s.start).toISOString(), end: new Date(s.end).toISOString(), kw: s.kw, kwh: s.kwh, price_cents: s.price });
 
@@ -69,7 +23,7 @@ const slotOf = (s) => ({ start: new Date(s.start).toISOString(), end: new Date(s
 export async function checkPracticeNight(answer, { keyDirectory, issuer }) {
   const out = [];
   const sig = await verifyJws(answer.receipt_jws, keyDirectory);
-  const receipt = sig.ok ? sig.payload : null;
+  const receipt = sig.ok ? sig.statement : null;
   const signedHere = sig.ok && receipt.iss === issuer && receipt.practice === true;
   out.push({
     id: "signature",
